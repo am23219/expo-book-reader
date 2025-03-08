@@ -336,7 +336,7 @@ export default function BookPage() {
   
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar style="auto" />
+      <StatusBar hidden={true} />
       
       {/* Header with improved compact design */}
       <View style={styles.header}>
@@ -366,8 +366,8 @@ export default function BookPage() {
           </View>
         </View>
         
-        <TouchableOpacity style={styles.menuButton} onPress={toggleAudioModal}>
-          <Ionicons name="musical-notes" size={22} color="#0D8A4E" />
+        <TouchableOpacity style={styles.audioButton} onPress={toggleAudioModal}>
+          <Ionicons name="musical-notes" size={20} color="#0D8A4E" />
         </TouchableOpacity>
       </View>
       
@@ -506,17 +506,24 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#e9ecef',
     backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
   },
   menuButton: {
     padding: 6,
+    borderRadius: 18,
+    backgroundColor: '#f8f9fa',
   },
   pageIndicator: {
     flex: 1,
-    marginHorizontal: 8,
+    marginHorizontal: 10,
   },
   titleProgressContainer: {
     flexDirection: 'row',
@@ -527,23 +534,33 @@ const styles = StyleSheet.create({
   pageIndicatorText: {
     fontSize: 14,
     color: '#343a40',
-    fontWeight: '500',
+    fontWeight: '600',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif-medium',
   },
   progressContainer: {
     width: '100%',
-    height: 4,
+    height: 3,
     backgroundColor: '#e9ecef',
-    borderRadius: 2,
+    borderRadius: 3,
     overflow: 'hidden',
   },
   progressBar: {
     height: '100%',
     backgroundColor: '#0D8A4E',
-    borderRadius: 2,
+    borderRadius: 4,
   },
   progressText: {
     fontSize: 12,
     color: '#6c757d',
+    fontWeight: '500',
+    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
+  },
+  audioButton: {
+    padding: 8,
+    borderRadius: 18,
+    backgroundColor: '#E8F5EE',
+    borderWidth: 1,
+    borderColor: 'rgba(13, 138, 78, 0.2)',
   },
   pdfContainer: {
     flex: 1,
