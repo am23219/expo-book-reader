@@ -60,6 +60,7 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#F9F5EB',
   },
   pdf: {
     flex: 1,
@@ -74,7 +75,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    backgroundColor: 'rgba(249, 245, 235, 0.8)',
     zIndex: 10,
   },
   loadingText: {

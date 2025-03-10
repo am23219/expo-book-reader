@@ -1,9 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import PageViewer from '../components/PageViewer';
-import AudioPlayer from '../components/SimpleAudioPlayer';
 import SectionNavigation from '../components/SectionNavigation';
 import { Section, SECTIONS } from '../models/Section';
 import { loadSections, saveSections, loadCurrentPage, saveCurrentPage } from '../utils/storage';
@@ -15,6 +14,44 @@ import { Audio } from 'expo-av';
 import SimpleAudioPlayer from '../components/SimpleAudioPlayer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShakeView from '../components/ShakeView';
+import { LinearGradient } from 'expo-linear-gradient';
+import ReadingStreakNotification from '../components/ReadingStreakNotification';
+
+const startOfDay = (date: Date): Date => {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  return result;
+};
+
+const addDays = (date: Date, days: number): Date => {
+  const result = new Date(date);
+  result.setDate(result.getDate() + days);
+  return result;
+};
+
+const differenceInDays = (date1: Date, date2: Date): number => {
+  const diffTime = Math.abs(date1.getTime() - date2.getTime());
+  return Math.floor(diffTime / (1000 * 60 * 60 * 24));
+};
+
+const isSameDay = (date1: Date, date2: Date): boolean => {
+  return (
+    date1.getFullYear() === date2.getFullYear() &&
+    date1.getMonth() === date2.getMonth() &&
+    date1.getDate() === date2.getDate()
+  );
+};
+
+const formatDate = (date: Date, format: string): string => {
+  if (format === 'EEE') {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return days[date.getDay()];
+  }
+  if (format === 'd') {
+    return date.getDate().toString();
+  }
+  return date.toLocaleDateString();
+};
 
 export default function BookPage() {
   const [sections, setSections] = useState<Section[]>(SECTIONS);
@@ -26,7 +63,7 @@ export default function BookPage() {
   const [khatmCount, setKhatmCount] = useState(0);
   const [showKhatmModal, setShowKhatmModal] = useState(false);
   const [showManzilConfetti, setShowManzilConfetti] = useState(false);
-  const [showKhatmConfetti, setShowKhatmConfetti] = useState(false);
+  const [showElegantCelebration, setShowElegantCelebration] = useState(false);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [shakeKhatmModal, setShakeKhatmModal] = useState(false);
   const [manzilCompletionColors, setManzilCompletionColors] = useState<string[]>([
@@ -36,6 +73,15 @@ export default function BookPage() {
     '#f44336', '#e91e63', '#9c27b0', '#673ab7', '#3f51b5', '#2196f3', '#03a9f4', 
     '#00bcd4', '#009688', '#4CAF50', '#8BC34A', '#FFEB3B', '#FFC107', '#FF9800', '#FF5722'
   ]);
+  const [readingHistory, setReadingHistory] = useState<Date[]>([]);
+  const [currentStreak, setCurrentStreak] = useState(0);
+  const [longestStreak, setLongestStreak] = useState(0);
+  const [showStreakNotification, setShowStreakNotification] = useState(false);
+  const [notificationData, setNotificationData] = useState({
+    title: '',
+    message: '',
+    isKhatm: false
+  });
   
   const sectionDrawerAnim = useRef(new Animated.Value(-280)).current;
   const { height, width } = Dimensions.get('window');
@@ -43,6 +89,39 @@ export default function BookPage() {
   
   // Estimate bottom insets based on device dimensions and platform
   const estimatedBottomInset = Platform.OS === 'ios' && height > 800 ? 34 : 0;
+  
+  // Responsive sizing calculations
+  const isLargeScreen = useMemo(() => width > 380, [width]);
+  const isExtraLargeScreen = useMemo(() => width > 428, [width]);
+  const patternOpacity = useMemo(() => isLargeScreen ? 0.035 : 0, [isLargeScreen]);
+  const menuScale = useMemo(() => isLargeScreen ? (isExtraLargeScreen ? 1.15 : 1.1) : 1, [isLargeScreen, isExtraLargeScreen]);
+  const headerPadding = useMemo(() => isLargeScreen ? (isExtraLargeScreen ? 14 : 12) : 8, [isLargeScreen, isExtraLargeScreen]);
+  
+  // Enhanced responsive sizing for larger screens
+  const headerHeight = useMemo(() => 
+    isLargeScreen ? (isExtraLargeScreen ? 90 : 80) : 60, 
+    [isLargeScreen, isExtraLargeScreen]
+  );
+  const headerTopPadding = useMemo(() => 
+    isLargeScreen ? (isExtraLargeScreen ? 16 : 12) : 8, 
+    [isLargeScreen, isExtraLargeScreen]
+  );
+  const progressBarHeight = useMemo(() => 
+    isLargeScreen ? (isExtraLargeScreen ? 6 : 5) : 3, 
+    [isLargeScreen, isExtraLargeScreen]
+  );
+  const titleFontSize = useMemo(() => 
+    isLargeScreen ? (isExtraLargeScreen ? 24 : 20) : 14, 
+    [isLargeScreen, isExtraLargeScreen]
+  );
+  const progressTextSize = useMemo(() => 
+    isLargeScreen ? (isExtraLargeScreen ? 18 : 16) : 12, 
+    [isLargeScreen, isExtraLargeScreen]
+  );
+  const iconSize = useMemo(() => 
+    isLargeScreen ? (isExtraLargeScreen ? 30 : 26) : 22, 
+    [isLargeScreen, isExtraLargeScreen]
+  );
   
   // Load saved data on component mount
   useEffect(() => {
@@ -162,8 +241,166 @@ export default function BookPage() {
       : undefined;
   }, [sound]);
   
-  // Enhanced section completion handler
-  const handleSectionCompletion = (section: Section) => {
+  // Add this function to manage the reading history and streaks
+  const updateReadingStreak = async () => {
+    try {
+      // Get today's date (start of day for consistent comparison)
+      const today = startOfDay(new Date());
+      
+      // Get saved reading history
+      const savedHistory = await AsyncStorage.getItem('reading_history');
+      let history: Date[] = [];
+      
+      if (savedHistory) {
+        // Parse saved dates from JSON
+        history = JSON.parse(savedHistory).map((dateStr: string) => new Date(dateStr));
+        
+        // Check if we already recorded today
+        const alreadyRecordedToday = history.some(date => isSameDay(date, today));
+        
+        if (!alreadyRecordedToday) {
+          // Add today to reading history
+          history.push(today);
+        }
+      } else {
+        // First time reading, initialize with today
+        history = [today];
+      }
+      
+      // Calculate current streak
+      let streak = 1; // Start with today
+      let maxStreak = 1;
+      let previousDate = today;
+      
+      // Sort dates in descending order (newest first)
+      const sortedDates = [...history].sort((a, b) => b.getTime() - a.getTime());
+      
+      // Calculate streak (consecutive days)
+      for (let i = 1; i < sortedDates.length; i++) {
+        const currentDate = sortedDates[i];
+        const dayDifference = differenceInDays(previousDate, currentDate);
+        
+        if (dayDifference === 1) {
+          // Consecutive day
+          streak++;
+          maxStreak = Math.max(maxStreak, streak);
+        } else if (dayDifference > 1) {
+          // Streak broken
+          break;
+        }
+        
+        previousDate = currentDate;
+      }
+      
+      // Get previous longest streak
+      const savedLongestStreak = await AsyncStorage.getItem('longest_streak');
+      const previousLongestStreak = savedLongestStreak ? parseInt(savedLongestStreak) : 0;
+      
+      // Update longest streak if current is higher
+      const newLongestStreak = Math.max(streak, previousLongestStreak);
+      
+      // Save everything to state and storage
+      setReadingHistory(history);
+      setCurrentStreak(streak);
+      setLongestStreak(newLongestStreak);
+      
+      await AsyncStorage.setItem('reading_history', JSON.stringify(history.map(date => date.toISOString())));
+      await AsyncStorage.setItem('longest_streak', newLongestStreak.toString());
+      
+      return {
+        history,
+        currentStreak: streak,
+        longestStreak: newLongestStreak
+      };
+    } catch (error) {
+      console.error('Error updating reading streak:', error);
+      return {
+        history: [],
+        currentStreak: 1,
+        longestStreak: 1
+      };
+    }
+  };
+  
+  // Load reading history on component mount
+  useEffect(() => {
+    const loadReadingData = async () => {
+      try {
+        // Load saved reading history
+        const savedHistory = await AsyncStorage.getItem('reading_history');
+        const savedLongestStreak = await AsyncStorage.getItem('longest_streak');
+        
+        if (savedHistory) {
+          const history = JSON.parse(savedHistory).map((dateStr: string) => new Date(dateStr));
+          setReadingHistory(history);
+          
+          // Calculate current streak
+          const today = startOfDay(new Date());
+          let streak = 0;
+          let previousDate = today;
+          let foundToday = false;
+          
+          // Check if today is already in the history
+          const sortedDates = [...history].sort((a, b) => b.getTime() - a.getTime());
+          
+          if (sortedDates.length > 0 && isSameDay(sortedDates[0], today)) {
+            foundToday = true;
+            streak = 1;
+            previousDate = today;
+            
+            // Calculate consecutive days
+            for (let i = 1; i < sortedDates.length; i++) {
+              const currentDate = new Date(sortedDates[i]);
+              const dayDifference = differenceInDays(previousDate, currentDate);
+              
+              if (dayDifference === 1) {
+                streak++;
+              } else {
+                break;
+              }
+              
+              previousDate = currentDate;
+            }
+          } else if (sortedDates.length > 0) {
+            // User hasn't read today yet, check if yesterday was recorded
+            const yesterday = startOfDay(addDays(today, -1));
+            
+            if (isSameDay(sortedDates[0], yesterday)) {
+              // Streak continues from yesterday
+              previousDate = yesterday;
+              streak = 1;
+              
+              // Calculate consecutive days
+              for (let i = 1; i < sortedDates.length; i++) {
+                const currentDate = new Date(sortedDates[i]);
+                const dayDifference = differenceInDays(previousDate, currentDate);
+                
+                if (dayDifference === 1) {
+                  streak++;
+                } else {
+                  break;
+                }
+                
+                previousDate = currentDate;
+              }
+            }
+          }
+          
+          // Set longest streak from storage or current streak
+          const storedLongestStreak = savedLongestStreak ? parseInt(savedLongestStreak) : 0;
+          setCurrentStreak(streak);
+          setLongestStreak(Math.max(storedLongestStreak, streak));
+        }
+      } catch (error) {
+        console.error('Error loading reading data:', error);
+      }
+    };
+    
+    loadReadingData();
+  }, []);
+  
+  // Modify handleSectionCompletion to update the streak and show the notification
+  const handleSectionCompletion = async (section: Section) => {
     console.log(`Section ${section.title} completed!`);
     
     // Update sections
@@ -171,115 +408,123 @@ export default function BookPage() {
       s.id === section.id ? { ...s, isCompleted: true } : s
     );
     
+    // Save to storage
     setSections(updatedSections);
     saveSections(updatedSections);
     
-    // Celebrate manzil completion with haptics and confetti
-    celebrateManzilCompletion();
+    // Update reading streak
+    const { history, currentStreak, longestStreak } = await updateReadingStreak();
     
-    // Check if all sections are completed
+    // Check if this completes a manzil
+    if (section.title.includes('Manzil')) {
+      console.log(`Manzil ${section.title} completed!`);
+      
+      // Vibrate to give feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      
+      // Calculate reading streak message
+      let streakMessage = '';
+      if (currentStreak > 1) {
+        streakMessage = `You're on a ${currentStreak}-day reading streak! Keep it up!`;
+      } else {
+        streakMessage = `Great job completing this manzil! Read tomorrow to start a streak.`;
+      }
+      
+      // Set notification data
+      setNotificationData({
+        title: `${section.title} Completed!`,
+        message: streakMessage,
+        isKhatm: false
+      });
+      
+      // Show notification
+      setShowStreakNotification(true);
+    }
+    
+    // Check for Khatm completion
     checkKhatmCompletion(updatedSections);
   };
   
-  // Celebrate manzil completion
-  const celebrateManzilCompletion = async () => {
-    // Play haptic feedback - pattern for manzil completion
-    if (Platform.OS === 'ios') {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }, 300);
-    } else {
-      // For Android, use impact feedback
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }, 300);
-    }
-    
-    // Show confetti
-    setShowManzilConfetti(true);
-    
-    // Hide confetti after a few seconds
-    setTimeout(() => {
-      setShowManzilConfetti(false);
-    }, 3000);
-  };
-  
-  // Enhanced khatm completion check
-  const checkKhatmCompletion = (updatedSections: Section[]) => {
+  // Modify the checkKhatmCompletion function
+  const checkKhatmCompletion = async (updatedSections: Section[]) => {
+    // Check if all sections are completed
     const allCompleted = updatedSections.every(section => section.isCompleted);
     
     if (allCompleted) {
+      console.log('Khatm completed!');
+      
+      // Update reading streak
+      const { currentStreak, longestStreak } = await updateReadingStreak();
+      
       // Increment khatm count
       const newKhatmCount = khatmCount + 1;
       setKhatmCount(newKhatmCount);
+      
+      // Save to storage
       AsyncStorage.setItem('khatm_count', newKhatmCount.toString());
       
-      // Reset all sections to not completed
+      // Reset all sections for next khatm
       const resetSections = updatedSections.map(section => ({
         ...section,
-        isCompleted: false
+        isCompleted: false,
       }));
       
+      // Stronger vibration pattern for khatm
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setTimeout(() => {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      }, 300);
+      
+      // Set notification data for khatm completion
+      let message = '';
+      if (currentStreak > 1) {
+        message = `Congratulations on your ${newKhatmCount}${getOrdinalSuffix(newKhatmCount)} completion! You're on a ${currentStreak}-day streak. May Allah bless your dedication.`;
+      } else {
+        message = `Congratulations on completing your ${newKhatmCount}${getOrdinalSuffix(newKhatmCount)} read-through! May Allah accept your efforts.`;
+      }
+      
+      setNotificationData({
+        title: `Khatm #${newKhatmCount} Completed!`,
+        message,
+        isKhatm: true
+      });
+      
+      // Show notification
+      setShowStreakNotification(true);
+      
+      // Reset sections after notification is shown
       setSections(resetSections);
       saveSections(resetSections);
-      
-      // Show congratulatory modal and confetti
-      setShowKhatmModal(true);
-      setShowKhatmConfetti(true);
-      
-      // Activate shake animation
-      setShakeKhatmModal(true);
-      
-      // Reset shake after animation completes
-      setTimeout(() => {
-        setShakeKhatmModal(false);
-      }, 2000);
-      
-      // Provide stronger haptic feedback for khatm achievement
-      celebrateKhatmCompletion();
     }
   };
   
-  // Celebrate khatm completion with enhanced haptics
-  const celebrateKhatmCompletion = async () => {
-    // Create a more complex haptic pattern for khatm completion
-    if (Platform.OS === 'ios') {
-      // iOS has more haptic options
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      }, 300);
-      
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }, 600);
-      
-      setTimeout(() => {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      }, 900);
-      
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }, 1200);
-    } else {
-      // Android fallback
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }, 300);
-      
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-      }, 600);
-      
-      setTimeout(() => {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }, 900);
+  // Helper function to get ordinal suffix
+  const getOrdinalSuffix = (n: number): string => {
+    if (n > 3 && n < 21) return 'th';
+    switch (n % 10) {
+      case 1: return 'st';
+      case 2: return 'nd';
+      case 3: return 'rd';
+      default: return 'th';
     }
+  };
+  
+  // Helper function to generate the past 7 days data for the streak component
+  const getPast7Days = (): { date: Date; didRead: boolean }[] => {
+    const today = startOfDay(new Date());
+    const result = [];
+    
+    // Generate an array of the past 7 days
+    for (let i = 6; i >= 0; i--) {
+      const date = startOfDay(addDays(today, -i));
+      const didRead = readingHistory.some(readDate => 
+        isSameDay(new Date(readDate), date)
+      );
+      
+      result.push({ date, didRead });
+    }
+    
+    return result;
   };
   
   // Toggle section completion status
@@ -299,7 +544,7 @@ export default function BookPage() {
     // If section was just completed (not uncompleted)
     if (!wasCompleted && section) {
       // Celebrate manzil completion
-      celebrateManzilCompletion();
+      handleSectionCompletion(section);
     }
     
     // Check if all sections are completed
@@ -338,55 +583,117 @@ export default function BookPage() {
     <SafeAreaView style={styles.container}>
       <StatusBar hidden={true} />
       
-      {/* Header with improved compact design */}
-      <View style={styles.header}>
-        <TouchableOpacity style={styles.menuButton} onPress={toggleSectionDrawer}>
-          <Ionicons name="menu" size={22} color="#0D8A4E" />
+      {/* Decorative Background for larger screens */}
+      {isLargeScreen && (
+        <View style={styles.decorativeBackground}>
+          <View style={[styles.patternContainer, { opacity: patternOpacity }]}>
+            {/* Top pattern */}
+            <View style={[styles.geometricPattern, styles.topPattern]} />
+            {/* Bottom pattern */}
+            <View style={[styles.geometricPattern, styles.bottomPattern]} />
+          </View>
+          
+          {/* Side gradients to soften the edges */}
+          <LinearGradient
+            colors={['rgba(249, 245, 235, 0.98)', 'rgba(249, 245, 235, 0.75)', 'rgba(249, 245, 235, 0.75)', 'rgba(249, 245, 235, 0.98)']}
+            start={{x: 0, y: 0.5}}
+            end={{x: 1, y: 0.5}}
+            style={styles.sideGradient}
+          />
+        </View>
+      )}
+      
+      {/* Enhanced Header with improved design for larger screens */}
+      <View style={[
+        styles.header, 
+        { 
+          paddingTop: headerTopPadding,
+          paddingBottom: headerPadding,
+          height: 'auto', // Allow height to adjust based on content
+          minHeight: headerHeight,
+        }
+      ]}>
+        <TouchableOpacity 
+          style={[styles.menuButton, { transform: [{ scale: menuScale }] }]} 
+          onPress={toggleSectionDrawer}
+        >
+          <Ionicons name="menu" size={iconSize} color="#5A9EBF" />
         </TouchableOpacity>
         
-        <View style={styles.pageIndicator}>
+        <View style={[
+          styles.pageIndicator, 
+          { 
+            marginHorizontal: 10 * menuScale,
+            paddingVertical: isLargeScreen ? 12 : 6,
+          }
+        ]}>
           <View style={styles.titleProgressContainer}>
-            <Text style={styles.pageIndicatorText}>
+            <Text style={[
+              styles.pageIndicatorText, 
+              { fontSize: titleFontSize }
+            ]}>
               {currentSection.title}
             </Text>
-            <Text style={styles.progressText}>
+            <Text style={[
+              styles.progressText, 
+              { fontSize: progressTextSize }
+            ]}>
               {currentPage - currentSection.startPage + 1}/{currentSection.endPage - currentSection.startPage + 1}
             </Text>
           </View>
-          <View style={styles.progressContainer}>
+          <View style={[
+            styles.progressContainer,
+            isLargeScreen && { marginTop: 10 }
+          ]}>
             <View 
               style={[
                 styles.progressBar, 
                 { 
                   width: `${Math.max(0, Math.min(100, ((currentPage - currentSection.startPage + 1) / 
-                    (currentSection.endPage - currentSection.startPage + 1)) * 100))}%` 
+                    (currentSection.endPage - currentSection.startPage + 1)) * 100))}%`,
+                  height: progressBarHeight
                 }
               ]} 
             />
           </View>
         </View>
         
-        <TouchableOpacity style={styles.audioButton} onPress={toggleAudioModal}>
-          <Ionicons name="musical-notes" size={20} color="#0D8A4E" />
+        <TouchableOpacity 
+          style={[styles.audioButton, { transform: [{ scale: menuScale }] }]} 
+          onPress={toggleAudioModal}
+        >
+          <Ionicons name="musical-notes" size={iconSize - 2} color="#5A9EBF" />
         </TouchableOpacity>
       </View>
       
-      {/* PDF Viewer */}
-      <View style={styles.content}>
-        {useFallbackViewer ? (
-          <PageViewer 
-            currentPage={currentPage} 
-            onPageChange={handlePageChange}
-            currentSection={currentSection}
-          />
-        ) : (
-          <EnhancedPdfViewer 
-            currentPage={currentPage} 
-            onPageChange={handlePageChange}
-            onError={() => setUseFallbackViewer(true)}
-            currentSection={currentSection}
-          />
-        )}
+      {/* PDF Viewer with improved container for larger screens */}
+      <View style={[
+        styles.content, 
+        isLargeScreen && { 
+          paddingHorizontal: isExtraLargeScreen ? 35 : 25,
+          paddingVertical: isExtraLargeScreen ? 10 : 8,
+          flex: 1, // Ensure it takes remaining space
+        }
+      ]}>
+        <View style={[
+          styles.pdfContainer, 
+          isLargeScreen && styles.pdfContainerLarge
+        ]}>
+          {useFallbackViewer ? (
+            <PageViewer 
+              currentPage={currentPage} 
+              onPageChange={handlePageChange}
+              currentSection={currentSection}
+            />
+          ) : (
+            <EnhancedPdfViewer 
+              currentPage={currentPage} 
+              onPageChange={handlePageChange}
+              onError={() => setUseFallbackViewer(true)}
+              currentSection={currentSection}
+            />
+          )}
+        </View>
       </View>
       
       {/* Section Navigation Drawer */}
@@ -409,30 +716,13 @@ export default function BookPage() {
         />
       </Animated.View>
       
-      {/* Audio Modal */}
-      {isAudioModalVisible && (
-        <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackground}
-            activeOpacity={1} 
-            onPress={toggleAudioModal}
-          />
-          <View style={styles.audioModal}>
-            <View style={styles.audioModalHeader}>
-              <Text style={styles.audioModalTitle}>{currentSection.title} Audio</Text>
-              <TouchableOpacity onPress={toggleAudioModal}>
-                <Ionicons name="close" size={24} color="#6c757d" />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.audioPlayerContent}>
-              <SimpleAudioPlayer 
-                currentSection={currentSection}
-                sections={sections}
-              />
-            </View>
-          </View>
-        </View>
-      )}
+      {/* Standalone Audio Player Modal */}
+      <SimpleAudioPlayer 
+        currentSection={currentSection}
+        sections={sections}
+        onClose={toggleAudioModal}
+        visible={isAudioModalVisible}
+      />
       
       {/* Khatm Completion Modal with Shake Animation */}
       {showKhatmModal && (
@@ -442,7 +732,6 @@ export default function BookPage() {
             activeOpacity={1} 
             onPress={() => {
               setShowKhatmModal(false);
-              setShowKhatmConfetti(false);
             }}
           />
           <ShakeView shake={shakeKhatmModal} intensity={10} count={5} style={styles.modal}>
@@ -463,7 +752,6 @@ export default function BookPage() {
               style={styles.modalButton}
               onPress={() => {
                 setShowKhatmModal(false);
-                setShowKhatmConfetti(false);
               }}
             >
               <Text style={styles.modalButtonText}>Continue Reading</Text>
@@ -482,14 +770,18 @@ export default function BookPage() {
         />
       }
       
-      {showKhatmConfetti && 
-        <Confetti 
-          count={150} 
-          duration={6000} 
-          colors={khatmCompletionColors}
-          size={{ min: 8, max: 20 }}
+      {showStreakNotification && (
+        <ReadingStreakNotification
+          visible={showStreakNotification}
+          title={notificationData.title}
+          message={notificationData.message}
+          readingDays={getPast7Days()}
+          currentStreak={currentStreak}
+          longestStreak={longestStreak}
+          onClose={() => setShowStreakNotification(false)}
+          isKhatm={notificationData.isKhatm}
         />
-      }
+      )}
     </SafeAreaView>
   );
 }
@@ -497,33 +789,40 @@ export default function BookPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F9F5EB',
   },
   content: {
     flex: 1,
+    backgroundColor: '#F9F5EB',
+    justifyContent: 'center',
+    zIndex: 1,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-    backgroundColor: '#ffffff',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: 'rgba(249, 245, 235, 0.92)',
+    borderBottomWidth: 0,
+    justifyContent: 'space-between',
+    zIndex: 5, // Ensure header is above content
   },
   menuButton: {
-    padding: 6,
-    borderRadius: 18,
-    backgroundColor: '#f8f9fa',
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'transparent',
   },
   pageIndicator: {
     flex: 1,
     marginHorizontal: 10,
+    backgroundColor: 'rgba(245, 241, 230, 0.7)',
+    borderRadius: 12,
+    paddingHorizontal: 15,
+    paddingVertical: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
   },
   titleProgressContainer: {
     flexDirection: 'row',
@@ -532,35 +831,30 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   pageIndicatorText: {
-    fontSize: 14,
-    color: '#343a40',
+    color: '#4A6E8A',
     fontWeight: '600',
     fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif-medium',
   },
   progressContainer: {
     width: '100%',
-    height: 3,
-    backgroundColor: '#e9ecef',
+    backgroundColor: 'rgba(200, 225, 235, 0.5)',
     borderRadius: 3,
     overflow: 'hidden',
   },
   progressBar: {
-    height: '100%',
-    backgroundColor: '#0D8A4E',
-    borderRadius: 4,
+    backgroundColor: '#5A9EBF',
+    borderRadius: 3,
   },
   progressText: {
-    fontSize: 12,
-    color: '#6c757d',
+    color: '#607D8B',
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
   },
   audioButton: {
     padding: 8,
-    borderRadius: 18,
-    backgroundColor: '#E8F5EE',
-    borderWidth: 1,
-    borderColor: 'rgba(13, 138, 78, 0.2)',
+    borderRadius: 20,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
   },
   pdfContainer: {
     flex: 1,
@@ -571,14 +865,14 @@ const styles = StyleSheet.create({
     left: 0,
     bottom: 0,
     width: 280,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F9F5EB',
     zIndex: 10,
     shadowColor: '#000',
     shadowOffset: { width: 2, height: 0 },
     shadowOpacity: 0.2,
     shadowRadius: 5,
     elevation: 5,
-    paddingTop: 50, // Adjust based on your safe area
+    paddingTop: 50,
   },
   audioModal: {
     position: 'absolute',
@@ -586,7 +880,7 @@ const styles = StyleSheet.create({
     left: '5%',
     right: '5%',
     transform: [{ translateY: -150 }],
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F9F5EB',
     borderRadius: 16,
     padding: 20,
     shadowColor: '#000',
@@ -625,7 +919,7 @@ const styles = StyleSheet.create({
     zIndex: 1000,
   },
   modal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: '#F9F5EB',
     borderRadius: 16,
     padding: 24,
     width: '85%',
@@ -658,7 +952,7 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   khatmBadge: {
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F5F1E0',
     borderRadius: 100,
     width: 120,
     height: 120,

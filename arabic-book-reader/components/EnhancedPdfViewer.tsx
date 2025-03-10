@@ -116,7 +116,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         enableAntialiasing={true}
         trustAllCerts={false}
         enableRTL={true}
-        showsHorizontalScrollIndicator={true}
+        showsHorizontalScrollIndicator={false}
       />
       
       {/* Page navigation buttons - more subtle */}
@@ -146,13 +146,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F9F5EB',
   },
   pdf: {
     flex: 1,
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#F9F5EB',
   },
   loadingContainer: {
     position: 'absolute',
@@ -162,7 +162,7 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    backgroundColor: 'rgba(249, 245, 235, 0.8)',
     zIndex: 10,
   },
   loadingText: {

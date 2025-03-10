@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewProps } from 'react-native';
+import { Animated, StyleSheet, ViewProps, Platform } from 'react-native';
 
 interface ShakeViewProps extends ViewProps {
   shake?: boolean;
@@ -21,36 +21,41 @@ const ShakeView: React.FC<ShakeViewProps> = ({
 
   useEffect(() => {
     if (shake) {
-      Animated.sequence([
-        Animated.timing(shakeAnimation, { 
-          toValue: 0, 
-          duration: 0, 
-          useNativeDriver: true 
-        }),
-        Animated.sequence(
-          Array(count)
-            .fill(0)
-            .flatMap(() => [
-              Animated.timing(shakeAnimation, {
-                toValue: intensity,
-                duration: duration / (count * 2),
-                useNativeDriver: true,
-              }),
-              Animated.timing(shakeAnimation, {
-                toValue: -intensity,
-                duration: duration / (count * 2),
-                useNativeDriver: true,
-              }),
-            ])
-        ),
+      // Reset the animation value to avoid additive animation issues
+      shakeAnimation.setValue(0);
+      
+      // Create the animations array for better reuse
+      const shakeSequence = [];
+      
+      // Create count * 2 animations (back and forth for each count)
+      for (let i = 0; i < count; i++) {
+        shakeSequence.push(
+          Animated.timing(shakeAnimation, {
+            toValue: intensity,
+            duration: duration / (count * 2),
+            useNativeDriver: true,
+          }),
+          Animated.timing(shakeAnimation, {
+            toValue: -intensity,
+            duration: duration / (count * 2),
+            useNativeDriver: true,
+          })
+        );
+      }
+      
+      // Add final animation to return to center
+      shakeSequence.push(
         Animated.timing(shakeAnimation, {
           toValue: 0,
           duration: duration / (count * 2),
           useNativeDriver: true,
-        }),
-      ]).start();
+        })
+      );
+      
+      // Run the sequence
+      Animated.sequence(shakeSequence).start();
     }
-  }, [shake]);
+  }, [shake, intensity, duration, count]);
 
   const animatedStyle = {
     transform: [{ translateX: shakeAnimation }],
