@@ -1,50 +1,66 @@
-# Welcome to your Expo app 👋
+# Barakat Makiyyah Arabic Book Reader
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+An elegant, Islamic-styled PDF reader app specifically designed for reading Arabic books with right-to-left swiping navigation.
 
-## Get started
+## Features
 
-1. Install dependencies
+- **Right-to-Left Navigation**: Optimized for Arabic books with proper text direction
+- **Islamic Decorative Border**: Beautiful border design inspired by traditional Arabic books
+- **Touch Gestures**: Smooth swipe gestures for turning pages
+- **Elegant UI**: Clean interface with page progress indicator
+- **Page Numbering**: Decorative page number badge
+- **Zoom Controls**: Easily zoom in/out for comfortable reading
 
-   ```bash
-   npm install
-   ```
+## Setup
 
-2. Start the app
-
-   ```bash
-    npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
+1. Install dependencies:
+```
+npm install
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+2. Start the app:
+```
+npm start
+```
 
-## Learn more
+## PDF File
 
-To learn more about developing your project with Expo, look at the following resources:
+This app is specifically designed to display the "Barakat Makiyyah" PDF. The PDF file should be placed in:
+```
+assets/pdf/Barakaat_Makiyyah.pdf
+```
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Dependencies
 
-## Join the community
+- react-native
+- react-native-pdf
+- react-native-gesture-handler
+- @expo/vector-icons
+- expo-font
+- expo-file-system
 
-Join our community of developers creating universal apps.
+## Usage
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+The app automatically loads the Barakat Makiyyah PDF. You can navigate through the book using:
+
+- **Swipe Left/Right**: Turn pages
+- **Tap Left/Right Edges**: Turn pages
+- **Zoom Controls**: Buttons in the bottom-left corner
+- **Progress Bar**: Shows your position in the book
+
+## Customization
+
+To use a different PDF or change the styling:
+
+1. Replace the PDF file in `assets/pdf/`
+2. Update the book title in `App.js`
+3. Modify the colors in the styles section of `PDFReaderComponent.js`
+
+## Credits
+
+- Font: Amiri (https://github.com/alif-type/amiri)
+- Icons: Feather Icons from @expo/vector-icons
+
+## License
+
+MIT

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform } from 'react-native';
+import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform, Image, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import PageViewer from '../components/PageViewer';
@@ -9,13 +9,13 @@ import { loadSections, saveSections, loadCurrentPage, saveCurrentPage } from '..
 import EnhancedPdfViewer from '../components/EnhancedPdfViewer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
-import Confetti from '../components/Confetti';
 import { Audio } from 'expo-av';
 import SimpleAudioPlayer from '../components/SimpleAudioPlayer';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShakeView from '../components/ShakeView';
 import { LinearGradient } from 'expo-linear-gradient';
 import ReadingStreakNotification from '../components/ReadingStreakNotification';
+import Confetti from '../components/Confetti';
 
 const startOfDay = (date: Date): Date => {
   const result = new Date(date);
@@ -63,7 +63,6 @@ export default function BookPage() {
   const [khatmCount, setKhatmCount] = useState(0);
   const [showKhatmModal, setShowKhatmModal] = useState(false);
   const [showManzilConfetti, setShowManzilConfetti] = useState(false);
-  const [showElegantCelebration, setShowElegantCelebration] = useState(false);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [shakeKhatmModal, setShakeKhatmModal] = useState(false);
   const [manzilCompletionColors, setManzilCompletionColors] = useState<string[]>([
@@ -82,6 +81,8 @@ export default function BookPage() {
     message: '',
     isKhatm: false
   });
+  const [loadingAttempts, setLoadingAttempts] = useState(0);
+  const [appLoading, setAppLoading] = useState(true);
   
   const sectionDrawerAnim = useRef(new Animated.Value(-280)).current;
   const { height, width } = Dimensions.get('window');
@@ -93,7 +94,6 @@ export default function BookPage() {
   // Responsive sizing calculations
   const isLargeScreen = useMemo(() => width > 380, [width]);
   const isExtraLargeScreen = useMemo(() => width > 428, [width]);
-  const patternOpacity = useMemo(() => isLargeScreen ? 0.035 : 0, [isLargeScreen]);
   const menuScale = useMemo(() => isLargeScreen ? (isExtraLargeScreen ? 1.15 : 1.1) : 1, [isLargeScreen, isExtraLargeScreen]);
   const headerPadding = useMemo(() => isLargeScreen ? (isExtraLargeScreen ? 14 : 12) : 8, [isLargeScreen, isExtraLargeScreen]);
   
@@ -127,6 +127,7 @@ export default function BookPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        setAppLoading(true);
         const savedSections = await loadSections();
         const savedPage = await loadCurrentPage();
         const savedKhatmCount = await AsyncStorage.getItem('khatm_count');
@@ -141,11 +142,13 @@ export default function BookPage() {
         setKhatmCount(savedKhatmCount ? parseInt(savedKhatmCount) : 0);
         
         console.log(`Initial load - Page: ${savedPage}, Section: ${section.title} (${section.startPage}-${section.endPage})`);
+        setAppLoading(false);
       } catch (error) {
         console.error('Error loading data:', error);
         // Fallback to defaults if there's an error
         setCurrentPage(1);
         setCurrentSection(SECTIONS[0]);
+        setAppLoading(false);
       }
     };
     
@@ -579,6 +582,23 @@ export default function BookPage() {
     }
   }, [currentPage, sections]);
   
+  const handlePdfError = () => {
+    console.log(`PDF loading error occurred - attempts: ${loadingAttempts + 1}`);
+    
+    // If we've tried multiple times with the enhanced viewer, switch to fallback
+    if (loadingAttempts >= 2) {
+      console.log('Multiple PDF loading attempts failed, switching to fallback viewer');
+      setUseFallbackViewer(true);
+    } else {
+      setLoadingAttempts(prev => prev + 1);
+    }
+  };
+  
+  const resetPdfViewer = () => {
+    setLoadingAttempts(0);
+    setUseFallbackViewer(false);
+  };
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar hidden={true} />
@@ -586,7 +606,7 @@ export default function BookPage() {
       {/* Decorative Background for larger screens */}
       {isLargeScreen && (
         <View style={styles.decorativeBackground}>
-          <View style={[styles.patternContainer, { opacity: patternOpacity }]}>
+          <View style={styles.patternContainer}>
             {/* Top pattern */}
             <View style={[styles.geometricPattern, styles.topPattern]} />
             {/* Bottom pattern */}
@@ -670,30 +690,45 @@ export default function BookPage() {
       <View style={[
         styles.content, 
         isLargeScreen && { 
-          paddingHorizontal: isExtraLargeScreen ? 35 : 25,
-          paddingVertical: isExtraLargeScreen ? 10 : 8,
           flex: 1, // Ensure it takes remaining space
         }
       ]}>
-        <View style={[
-          styles.pdfContainer, 
-          isLargeScreen && styles.pdfContainerLarge
-        ]}>
-          {useFallbackViewer ? (
-            <PageViewer 
-              currentPage={currentPage} 
-              onPageChange={handlePageChange}
-              currentSection={currentSection}
-            />
-          ) : (
-            <EnhancedPdfViewer 
-              currentPage={currentPage} 
-              onPageChange={handlePageChange}
-              onError={() => setUseFallbackViewer(true)}
-              currentSection={currentSection}
-            />
-          )}
-        </View>
+        {appLoading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#5A9EBF" />
+            <Text style={styles.loadingText}>تحميل الكتاب...</Text>
+          </View>
+        ) : (
+          <>
+            <View style={[
+              styles.pdfContainer, 
+              isLargeScreen && styles.pdfContainerLarge
+            ]}>
+              {!useFallbackViewer ? (
+                <EnhancedPdfViewer 
+                  currentPage={currentPage} 
+                  onPageChange={handlePageChange}
+                  onError={handlePdfError}
+                  currentSection={currentSection}
+                />
+              ) : (
+                <View style={styles.fallbackContainer}>
+                  <PageViewer 
+                    currentPage={currentPage}
+                    onPageChange={handlePageChange}
+                    currentSection={currentSection}
+                  />
+                  <TouchableOpacity 
+                    style={styles.resetButton} 
+                    onPress={resetPdfViewer}
+                  >
+                    <Text style={styles.resetButtonText}>Try Enhanced Viewer Again</Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          </>
+        )}
       </View>
       
       {/* Section Navigation Drawer */}
@@ -796,6 +831,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F5EB',
     justifyContent: 'center',
     zIndex: 1,
+    padding: 0,
   },
   header: {
     flexDirection: 'row',
@@ -858,6 +894,8 @@ const styles = StyleSheet.create({
   },
   pdfContainer: {
     flex: 1,
+    width: '100%',
+    height: '100%',
   },
   sectionDrawer: {
     position: 'absolute',
@@ -991,5 +1029,80 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  decorativeBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  patternContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  geometricPattern: {
+    position: 'absolute',
+    width: '100%',
+    height: '30%',
+    opacity: 0.05,
+  },
+  topPattern: {
+    top: 0,
+    backgroundColor: '#5A9EBF',
+    borderBottomLeftRadius: 100,
+    borderBottomRightRadius: 100,
+  },
+  bottomPattern: {
+    bottom: 0,
+    backgroundColor: '#5A9EBF',
+    borderTopLeftRadius: 100,
+    borderTopRightRadius: 100,
+  },
+  sideGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
+  },
+  pdfContainerLarge: {
+    width: '100%',
+    height: '100%',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f9f5eb', 
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 18,
+    color: '#5A9EBF',
+    fontFamily: Platform.OS === 'ios' ? 'Helvetica' : 'Roboto',
+  },
+  fallbackContainer: {
+    flex: 1,
+    position: 'relative',
+  },
+  resetButton: {
+    position: 'absolute',
+    bottom: 20,
+    alignSelf: 'center',
+    backgroundColor: '#5A9EBF',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+  },
+  resetButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

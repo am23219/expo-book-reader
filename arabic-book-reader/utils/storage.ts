@@ -1,49 +1,76 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Section, SECTIONS } from '../models/Section';
 
-const SECTIONS_STORAGE_KEY = 'barakaat_makiyyah_sections';
-const CURRENT_PAGE_KEY = 'barakaat_makiyyah_current_page';
+// Keys for AsyncStorage
+const SECTIONS_STORAGE_KEY = 'arabic_book_reader_sections';
+const CURRENT_PAGE_STORAGE_KEY = 'arabic_book_reader_current_page';
 
-// Save sections with completion status
+/**
+ * Load saved sections from AsyncStorage
+ */
+export const loadSections = async (): Promise<Section[]> => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(SECTIONS_STORAGE_KEY);
+    if (jsonValue !== null) {
+      return JSON.parse(jsonValue);
+    }
+    return SECTIONS; // Return default sections if none are saved
+  } catch (error) {
+    console.error('Error loading sections:', error);
+    return SECTIONS; // Return default sections on error
+  }
+};
+
+/**
+ * Save sections to AsyncStorage
+ */
 export const saveSections = async (sections: Section[]): Promise<void> => {
   try {
-    await AsyncStorage.setItem(SECTIONS_STORAGE_KEY, JSON.stringify(sections));
+    const jsonValue = JSON.stringify(sections);
+    await AsyncStorage.setItem(SECTIONS_STORAGE_KEY, jsonValue);
   } catch (error) {
     console.error('Error saving sections:', error);
   }
 };
 
-// Load sections with completion status
-export const loadSections = async (): Promise<Section[]> => {
+/**
+ * Load current page from AsyncStorage
+ */
+export const loadCurrentPage = async (): Promise<number> => {
   try {
-    const sectionsJson = await AsyncStorage.getItem(SECTIONS_STORAGE_KEY);
-    if (sectionsJson) {
-      return JSON.parse(sectionsJson);
+    const value = await AsyncStorage.getItem(CURRENT_PAGE_STORAGE_KEY);
+    if (value !== null) {
+      return parseInt(value, 10);
     }
-    return SECTIONS; // Return default sections if none saved
+    return 1; // Return first page if none is saved
   } catch (error) {
-    console.error('Error loading sections:', error);
-    return SECTIONS;
+    console.error('Error loading current page:', error);
+    return 1; // Return first page on error
   }
 };
 
-// Save current page
+/**
+ * Save current page to AsyncStorage
+ */
 export const saveCurrentPage = async (page: number): Promise<void> => {
   try {
-    await AsyncStorage.setItem(CURRENT_PAGE_KEY, page.toString());
+    await AsyncStorage.setItem(CURRENT_PAGE_STORAGE_KEY, page.toString());
   } catch (error) {
     console.error('Error saving current page:', error);
   }
 };
 
-// Load current page
-export const loadCurrentPage = async (): Promise<number> => {
+/**
+ * Clear all stored data (for debugging or reset functionality)
+ */
+export const clearAllData = async (): Promise<void> => {
   try {
-    const page = await AsyncStorage.getItem(CURRENT_PAGE_KEY);
-    return page ? parseInt(page, 10) : 1;
+    await AsyncStorage.multiRemove([
+      SECTIONS_STORAGE_KEY,
+      CURRENT_PAGE_STORAGE_KEY
+    ]);
   } catch (error) {
-    console.error('Error loading current page:', error);
-    return 1;
+    console.error('Error clearing data:', error);
   }
 };
 

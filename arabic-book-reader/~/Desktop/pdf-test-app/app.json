@@ -1,0 +1,13 @@
+{
+  "expo": {
+    "name": "PDF Test",
+    "slug": "pdf-test-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "plugins": ["@config-plugins/react-native-pdf"],
+    "ios": {
+      "bundleIdentifier": "com.am0519.pdftestapp",
+      "supportsTablet": true
+    }
+  }
+} 

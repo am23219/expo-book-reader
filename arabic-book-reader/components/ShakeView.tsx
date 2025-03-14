@@ -1,68 +1,63 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, StyleSheet, ViewProps, Platform } from 'react-native';
+import { Animated, ViewProps } from 'react-native';
 
 interface ShakeViewProps extends ViewProps {
-  shake?: boolean;
+  shake: boolean;
   intensity?: number;
   duration?: number;
   count?: number;
+  style?: any;
 }
 
-const ShakeView: React.FC<ShakeViewProps> = ({ 
-  children, 
-  shake = true, 
+const ShakeView: React.FC<ShakeViewProps> = ({
+  shake,
   intensity = 7,
   duration = 500,
   count = 3,
   style,
-  ...props 
+  children,
+  ...props
 }) => {
-  const shakeAnimation = useRef(new Animated.Value(0)).current;
+  const translateX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     if (shake) {
-      // Reset the animation value to avoid additive animation issues
-      shakeAnimation.setValue(0);
+      // Create an array of animations for the shake effect
+      const animations = [];
+      const shakeTimes = count * 2;
       
-      // Create the animations array for better reuse
-      const shakeSequence = [];
-      
-      // Create count * 2 animations (back and forth for each count)
-      for (let i = 0; i < count; i++) {
-        shakeSequence.push(
-          Animated.timing(shakeAnimation, {
-            toValue: intensity,
-            duration: duration / (count * 2),
-            useNativeDriver: true,
-          }),
-          Animated.timing(shakeAnimation, {
-            toValue: -intensity,
-            duration: duration / (count * 2),
+      for (let i = 0; i < shakeTimes; i++) {
+        // Alternate between positive and negative values
+        const toValue = i % 2 === 0 ? intensity : -intensity;
+        
+        animations.push(
+          Animated.timing(translateX, {
+            toValue,
+            duration: duration / shakeTimes,
             useNativeDriver: true,
           })
         );
       }
       
-      // Add final animation to return to center
-      shakeSequence.push(
-        Animated.timing(shakeAnimation, {
+      // Add a final animation to return to center
+      animations.push(
+        Animated.timing(translateX, {
           toValue: 0,
-          duration: duration / (count * 2),
+          duration: duration / shakeTimes,
           useNativeDriver: true,
         })
       );
       
-      // Run the sequence
-      Animated.sequence(shakeSequence).start();
+      // Run the sequence of animations
+      Animated.sequence(animations).start();
     }
-  }, [shake, intensity, duration, count]);
-
-  const animatedStyle = {
-    transform: [{ translateX: shakeAnimation }],
-  };
+  }, [shake, intensity, duration, count, translateX]);
 
   return (
-    <Animated.View style={[style, animatedStyle]} {...props}>
+    <Animated.View
+      style={[style, { transform: [{ translateX }] }]}
+      {...props}
+    >
       {children}
     </Animated.View>
   );
