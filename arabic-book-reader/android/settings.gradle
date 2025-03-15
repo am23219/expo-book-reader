@@ -21,7 +21,7 @@ extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
   }
 }
 
-rootProject.name = 'Arabic Book Reader'
+rootProject.name = 'BarakaatMakkiyyah'
 
 dependencyResolutionManagement {
   versionCatalogs {

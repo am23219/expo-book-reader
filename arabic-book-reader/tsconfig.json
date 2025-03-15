@@ -14,21 +14,17 @@
     "target": "esnext",
     "baseUrl": ".",
     "paths": {
-      "assets/*": [
-        "assets/*"
-      ],
-      "@components/*": [
-        "components/*"
-      ],
-      "@pages/*": [
-        "pages/*"
-      ],
-      "@models/*": [
-        "models/*"
-      ],
-      "@utils/*": [
-        "utils/*"
-      ]
+      "@/*": ["src/*"],
+      "@components/*": ["src/components/*"],
+      "@ui/*": ["src/components/ui/*"],
+      "@layout/*": ["src/components/layout/*"],
+      "@features/*": ["src/features/*"],
+      "@hooks/*": ["src/hooks/*"],
+      "@utils/*": ["src/utils/*"],
+      "@constants/*": ["src/constants/*"],
+      "@types/*": ["src/types/*"],
+      "@assets/*": ["src/assets/*"],
+      "@pages/*": ["src/pages/*"]
     }
   },
   "exclude": [

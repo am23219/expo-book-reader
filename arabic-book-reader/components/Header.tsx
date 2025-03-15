@@ -9,6 +9,7 @@ interface HeaderProps {
   title: string;
   subtitle?: string;
   onMenuPress: () => void;
+  onReminderPress?: () => void;
   
   // Progress props
   currentPage: number;
@@ -24,6 +25,7 @@ const Header: React.FC<HeaderProps> = ({
   title, 
   subtitle, 
   onMenuPress,
+  onReminderPress,
   currentPage,
   startPage,
   endPage,
@@ -94,6 +96,7 @@ const Header: React.FC<HeaderProps> = ({
           </View>
         </View>
         
+        {/* Commenting out notification button for now */}
         <View style={styles.placeHolder} />
       </View>
       
@@ -133,6 +136,15 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.xs,
   },
   menuButton: {
+    width: 42,
+    height: 42,
+    borderRadius: radius.round,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  reminderButton: {
     width: 42,
     height: 42,
     borderRadius: radius.round,

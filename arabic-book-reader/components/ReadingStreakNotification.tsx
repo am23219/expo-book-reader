@@ -109,31 +109,56 @@ const enhancedColors = {
     royalBlue: '#4254B9',   // Royal blue for highlights
     skyGlow: '#72BBE1',     // Existing sky blue with more purpose
     accent: '#5D6EE8',      // New accent color for special elements
+    deepPurple: '#2A1E54',  // Deep purple for sophisticated feel
+    vividTeal: '#00A5B5',   // Teal for freshness and engagement
+    brightAccent: '#4A6FE3', // Bright accent for attention-grabbing elements
   },
   gold: {
     rich: '#D4AF37',       // Rich gold for achievements
     light: '#F6E7B0',      // Light gold for accents
     vibrant: '#FFC64D',    // More vibrant gold for highlights
     deep: '#B38728',       // Deeper gold for contrast
+    gradient: '#FFD700',   // Pure gold for satisfaction
   },
   gradients: {
-    primaryTitle: ['#2A2D74', '#394099', '#4254B9'], // Deep to royal blue
-    quote: ['rgba(45, 49, 116, 0.12)', 'rgba(66, 84, 185, 0.08)'], // Subtle gradient for quotes
-    khatmTitle: ['#B38728', '#D4AF37', '#F2D675'], // Gold gradient for khatm
-    achievement: ['#384094', '#4254B9', '#72BBE1'], // Achievement gradient
-    button: ['#2A2D74', '#384094', '#5D6EE8'], // Button gradient with more appeal
-    khatmButton: ['#B38728', '#D4AF37', '#FFC64D'], // More vibrant gold button gradient
+    // Gradient for main notifications - more vibrant and engaging
+    notification: ['#1E2354', '#2A3785', '#4254B9'], 
+    // More vibrant background that creates excitement (blue to purple)
+    primaryTitle: ['#2A2D74', '#3B4094', '#4F59C9'], 
+    // More saturated quote gradient for increased readability
+    quote: ['rgba(42, 45, 116, 0.15)', 'rgba(66, 84, 185, 0.1)', 'rgba(114, 187, 225, 0.05)'], 
+    // More vibrant gold gradient that triggers reward sensation
+    khatmTitle: ['#B38728', '#D4AF37', '#FFD700'], 
+    // Bolder achievement gradient
+    achievement: ['#2A3785', '#4254B9', '#5D6EE8'], 
+    // More captivating button gradient
+    button: ['#2A2D74', '#384094', '#5D6EE8'], 
+    // More rewarding gold button gradient
+    khatmButton: ['#B38728', '#D4AF37', '#FFD700'], 
+    // Gradient for streak counter to make it more visually rewarding
+    streakCounter: ['#384094', '#4254B9', '#5D6EE8'], 
+    // Gold gradient for khatm streak counter 
+    khatmStreakCounter: ['#B38728', '#D4AF37', '#FFD700'],
+    // Updated rank background gradient
+    rank: ['rgba(66, 84, 185, 0.15)', 'rgba(93, 110, 232, 0.05)'],
+    // Gold rank background
+    khatmRank: ['rgba(179, 135, 40, 0.15)', 'rgba(255, 215, 0, 0.05)'],
   },
   background: {
     modal: '#FFFFFF',       // Pure white background
-    section: '#F8FAFD',     // Very light blue for sections
+    section: '#F0F6FF',     // Slightly more blue tint for better contrast
     highlight: '#E8F4FD',   // Slightly more saturated for highlights
+    dayCircle: '#F5F9FF',   // Light background for day circles
+    activeDay: '#4254B9',   // Vibrant color for completed days
+    activeDayGlow: '#5D6EE8', // Glow effect for active days
+    todayCircle: '#2A3785',  // More prominent color for today's circle
+    todayGlow: '#4A6FE3',    // Glow for today's circle
   },
 };
 
 // Add subtle pattern for texture - using an inline SVG for Islamic geometric pattern
 const patterns = {
-  geometric: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L15 15 0 30l15 15 15 15 15-15 15-15-15-15L30 0zm0 6.7L45.3 30 30 53.3 14.7 30 30 6.7z' fill='%23000000' fill-opacity='0.1'/%3E%3C/svg%3E")`
+  geometric: `data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 0L15 15 0 30l15 15 15 15 15-15 15-15-15-15L30 0zm0 6.7L45.3 30 30 53.3 14.7 30 30 6.7z' fill='%23000000' fill-opacity='0.1'/%3E%3C/svg%3E`
 };
 
 const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
@@ -361,72 +386,6 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
     outputRange: [-100, 100]
   });
 
-  const renderDayCircle = (day: ReadingDay, index: number) => {
-    const dayName = formatDate(day.date, 'EEE');
-    const dayDate = formatDate(day.date, 'd');
-    const isToday = isSameDay(day.date, new Date());
-    
-    const circleStyle = [
-      styles.dayCircle,
-      day.didRead ? styles.readDay : styles.missedDay,
-      isToday && styles.todayCircle,
-      isKhatm && day.didRead && styles.khatmReadDay
-    ];
-    
-    return (
-      <TouchableOpacity 
-        key={index} 
-        style={styles.dayCircleContainer}
-        onPress={() => day.didRead && triggerHaptic()}
-        activeOpacity={0.8}
-      >
-        {isToday ? (
-          <Animated.View 
-            style={[
-              ...circleStyle,
-              { transform: [{ scale: pulseAnim }] }
-            ]}
-          >
-            <Text style={[styles.dayName, day.didRead ? styles.readDayText : styles.missedDayText]}>
-              {dayName}
-            </Text>
-            <Text style={[styles.dayDate, day.didRead ? styles.readDayText : styles.missedDayText]}>
-              {dayDate}
-            </Text>
-            {day.didRead && (
-              <View style={[styles.checkmarkContainer, isKhatm && styles.khatmCheckmark]}>
-                <Ionicons 
-                  name="checkmark" 
-                  size={12} 
-                  color={colors.primary.white} 
-                />
-              </View>
-            )}
-          </Animated.View>
-        ) : (
-          <View style={circleStyle}>
-            <Text style={[styles.dayName, day.didRead ? styles.readDayText : styles.missedDayText]}>
-              {dayName}
-            </Text>
-            <Text style={[styles.dayDate, day.didRead ? styles.readDayText : styles.missedDayText]}>
-              {dayDate}
-            </Text>
-            {day.didRead && (
-              <View style={[styles.checkmarkContainer, isKhatm && styles.khatmCheckmark]}>
-                <Ionicons 
-                  name="checkmark" 
-                  size={12} 
-                  color={colors.primary.white} 
-                />
-              </View>
-            )}
-          </View>
-        )}
-        {isToday && <Text style={styles.todayLabel}>Today</Text>}
-      </TouchableOpacity>
-    );
-  };
-
   // Function to handle continue reading with haptic feedback
   const handleContinueReading = () => {
     triggerHaptic('medium');
@@ -562,8 +521,17 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
       >
         <LinearGradient
           colors={isKhatm ? 
-            ['#D4AF37', '#F4C430', '#D4AF37'] : 
-            ['#2A2D74', '#3A3D84', '#4A4D94']}
+            ['#FFF8E1', '#FFF5E0', '#FFF0D0'] as const : 
+            ['#F6FAFF', '#EEF6FF', '#E6F0FF'] as const}
+          style={[StyleSheet.absoluteFillObject]}
+          start={{x: 0, y: 0}}
+          end={{x: 1, y: 1}}
+        />
+        
+        <LinearGradient
+          colors={isKhatm ? 
+            ['#D4AF37', '#F4C430', '#D4AF37'] as const : 
+            ['#2A2D74', '#4254B9', '#2A2D74'] as const}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 0 }}
           style={styles.notificationBorder}
@@ -586,8 +554,8 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
           <View style={styles.titleBoxContainer}>
             <LinearGradient
               colors={isKhatm ? 
-                enhancedColors.gradients.khatmTitle : 
-                enhancedColors.gradients.primaryTitle}
+                [enhancedColors.gradients.khatmTitle[0], enhancedColors.gradients.khatmTitle[1], enhancedColors.gradients.khatmTitle[2]] as const : 
+                [enhancedColors.gradients.primaryTitle[0], enhancedColors.gradients.primaryTitle[1], enhancedColors.gradients.primaryTitle[2]] as const}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={styles.titleGradient}
@@ -603,8 +571,8 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
               <View style={styles.titleIconContainer}>
                 <LinearGradient
                   colors={isKhatm ? 
-                    [enhancedColors.gold.rich, enhancedColors.gold.vibrant] : 
-                    [enhancedColors.primary.deepNavy, enhancedColors.primary.royalBlue]}
+                    [enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const : 
+                    [enhancedColors.primary.deepNavy, enhancedColors.primary.royalBlue] as const}
                   style={styles.iconCircle}
                 >
                   <MaterialCommunityIcons 
@@ -619,10 +587,10 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
                 <Text style={[styles.title, isKhatm && styles.khatmTitle]}>{title}</Text>
                 {isKhatm && (
                   <LinearGradient 
-                    colors={[enhancedColors.gold.rich, enhancedColors.gold.vibrant]} 
+                    colors={[enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const} 
                     style={styles.badge}
                   >
-                    <Text style={styles.badgeText}>Salawat</Text>
+                    <Text style={styles.badgeText}>Khatm</Text>
                   </LinearGradient>
                 )}
               </View>
@@ -633,40 +601,43 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
           <View style={[styles.wisdomContainer, isKhatm && styles.khatmWisdomContainer]}>
             <LinearGradient
               colors={isKhatm ? 
-                ['rgba(212, 175, 55, 0.15)', 'rgba(244, 196, 48, 0.08)'] : 
-                enhancedColors.gradients.quote}
+                ['rgba(212, 175, 55, 0.15)', 'rgba(244, 196, 48, 0.08)', 'rgba(255, 215, 0, 0.05)'] as const : 
+                [enhancedColors.gradients.quote[0], enhancedColors.gradients.quote[1], enhancedColors.gradients.quote[2]] as const}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 1 }}
               style={[styles.wisdomGradient, isKhatm && styles.khatmWisdomGradient]}
             >
-              <View style={styles.quoteDecoration}>
-                <FontAwesome5 
-                  name="quote-left" 
-                  size={18} 
-                  color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.royalBlue} 
-                  style={styles.quoteIcon}
-                />
-              </View>
+              {!isKhatm && (
+                <View style={styles.quoteDecoration}>
+                  <FontAwesome5 
+                    name="quote-left" 
+                    size={18} 
+                    color={enhancedColors.primary.royalBlue} 
+                    style={styles.quoteIcon}
+                  />
+                </View>
+              )}
               <Text style={[styles.wisdomText, isKhatm && styles.khatmWisdomText]}>
                 {wisdomQuote}
               </Text>
-              <View style={styles.quoteEndDecoration}>
-                <FontAwesome5 
-                  name="quote-right" 
-                  size={16} 
-                  color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.royalBlue} 
-                  style={[styles.quoteIcon, styles.quoteEndIcon]}
-                />
-              </View>
+              {!isKhatm && (
+                <View style={styles.quoteEndDecoration}>
+                  <FontAwesome5 
+                    name="quote-right" 
+                    size={16} 
+                    color={enhancedColors.primary.royalBlue} 
+                    style={[styles.quoteIcon, styles.quoteEndIcon]}
+                  />
+                </View>
+              )}
             </LinearGradient>
           </View>
 
-          <Text style={styles.message}>{message}</Text>
-          
+          {/* Restore achievement badge for khatm */}
           {isKhatm && (
             <Animated.View style={[styles.achievementBadge, { transform: [{ scale: badgeScaleAnim }, { rotate: spin }] }]}>
               <LinearGradient
-                colors={['#D4AF37', '#F4C430', '#D4AF37']}
+                colors={['#D4AF37', '#F4C430', '#D4AF37'] as const}
                 style={styles.achievementBadgeInner}
               >
                 <Text style={styles.achievementIcon}>{getBadgeIcon('khatm', Math.min(completionNumber - 1, 4))}</Text>
@@ -674,35 +645,37 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
               </LinearGradient>
             </Animated.View>
           )}
-          
+
           <View style={[styles.streakSection, isKhatm && styles.khatmStreakSection]}>
             <LinearGradient 
               colors={isKhatm ? 
-                ['#FFF8E1', '#FFFDE7'] : 
-                [enhancedColors.background.section, enhancedColors.background.highlight]}
+                ['#FFF8E1', '#FFFEF5', '#FFF0D0'] as const : 
+                ['#F0F6FF', '#E8F4FD', '#E0F0FF'] as const}
+              start={{x: 0, y: 0}}
+              end={{x: 1, y: 1}}
               style={styles.streakContainer}
             >
               <Animated.View style={[styles.streakInfo, { transform: [{ scale: currentStreakAnim }] }]}>
-                <Text style={[styles.streakCount, isKhatm && styles.khatmStreakCount]}>{currentStreak}</Text>
-                <View style={styles.streakIconContainer}>
-                  <Ionicons 
-                    name="flame" 
-                    size={16} 
-                    color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
-                  />
-                </View>
+                <LinearGradient
+                  colors={isKhatm ? 
+                    [enhancedColors.gradients.khatmStreakCounter[0], enhancedColors.gradients.khatmStreakCounter[1], enhancedColors.gradients.khatmStreakCounter[2]] as const : 
+                    [enhancedColors.gradients.streakCounter[0], enhancedColors.gradients.streakCounter[1], enhancedColors.gradients.streakCounter[2]] as const}
+                  style={styles.streakCounterBadge}
+                >
+                  <Text style={[styles.streakCount, isKhatm && styles.khatmStreakCount]}>{currentStreak}</Text>
+                </LinearGradient>
                 <Text style={styles.streakLabel}>Current Streak</Text>
               </Animated.View>
               <View style={[styles.streakInfoDivider, isKhatm && styles.khatmDivider]} />
               <View style={styles.streakInfo}>
-                <Text style={[styles.streakCount, isKhatm && styles.khatmStreakCount]}>{longestStreak}</Text>
-                <View style={styles.streakIconContainer}>
-                  <Ionicons 
-                    name="trophy" 
-                    size={16} 
-                    color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
-                  />
-                </View>
+                <LinearGradient
+                  colors={isKhatm ? 
+                    [enhancedColors.gradients.khatmStreakCounter[0], enhancedColors.gradients.khatmStreakCounter[1], enhancedColors.gradients.khatmStreakCounter[2]] as const : 
+                    [enhancedColors.gradients.streakCounter[0], enhancedColors.gradients.streakCounter[1], enhancedColors.gradients.streakCounter[2]] as const}
+                  style={styles.streakCounterBadge}
+                >
+                  <Text style={[styles.streakCount, isKhatm && styles.khatmStreakCount]}>{longestStreak}</Text>
+                </LinearGradient>
                 <Text style={styles.streakLabel}>Longest Streak</Text>
               </View>
             </LinearGradient>
@@ -712,8 +685,8 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
             <View style={styles.levelContainer}>
               <LinearGradient
                 colors={isKhatm ? 
-                  ['rgba(212, 175, 55, 0.25)', 'rgba(244, 196, 48, 0.15)'] : 
-                  ['rgba(42, 45, 116, 0.25)', 'rgba(66, 84, 185, 0.15)']}
+                  ['#F8F0D0', '#FFF8E1'] as const : 
+                  ['#E6EFFF', '#F0F8FF'] as const}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={styles.levelGradient}
@@ -721,8 +694,8 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
                 <View style={styles.levelIconContainer}>
                   <LinearGradient
                     colors={isKhatm ? 
-                      [enhancedColors.gold.rich, enhancedColors.gold.vibrant] : 
-                      [enhancedColors.primary.deepNavy, enhancedColors.primary.royalBlue]}
+                      [enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const : 
+                      [enhancedColors.primary.deepNavy, enhancedColors.primary.royalBlue] as const}
                     style={styles.levelIconBg}
                   >
                     <FontAwesome5 
@@ -759,7 +732,72 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
             <View style={[styles.daysContainer, { 
               justifyContent: isSmallScreen ? 'space-between' : 'space-around' 
             }]}>
-              {readingDays.map((day, index) => renderDayCircle(day, index))}
+              {readingDays.map((day, index) => {
+                const dayName = formatDate(day.date, 'EEE');
+                const dayDate = formatDate(day.date, 'd');
+                const isToday = isSameDay(day.date, new Date());
+                
+                return (
+                  <TouchableOpacity 
+                    key={index} 
+                    style={styles.dayCircleContainer}
+                    onPress={() => day.didRead && triggerHaptic('medium')}
+                    activeOpacity={0.7}
+                  >
+                    {isToday ? (
+                      <Animated.View 
+                        style={[
+                          styles.dayCircle,
+                          { transform: [{ scale: pulseAnim }] }
+                        ]}
+                      >
+                        {day.didRead ? (
+                          <LinearGradient
+                            colors={isKhatm ? 
+                              [enhancedColors.gold.deep, enhancedColors.gold.vibrant] as const : 
+                              [enhancedColors.primary.deepNavy, enhancedColors.primary.brightAccent] as const}
+                            style={[styles.dayCircleGradient, styles.activeDayCircle]}
+                          >
+                            <Text style={styles.readDayText}>{dayDate}</Text>
+                          </LinearGradient>
+                        ) : (
+                          <View style={styles.inactiveDayCircle}>
+                            <Text style={styles.missedDayText}>{dayDate}</Text>
+                          </View>
+                        )}
+                      </Animated.View>
+                    ) : (
+                      <View style={styles.dayCircle}>
+                        {day.didRead ? (
+                          <LinearGradient
+                            colors={isKhatm ? 
+                              [enhancedColors.gold.deep, enhancedColors.gold.vibrant] as const : 
+                              [enhancedColors.primary.deepNavy, enhancedColors.primary.brightAccent] as const}
+                            style={[styles.dayCircleGradient, styles.activeDayCircle]}
+                          >
+                            <Text style={styles.readDayText}>{dayDate}</Text>
+                          </LinearGradient>
+                        ) : (
+                          <View style={styles.inactiveDayCircle}>
+                            <Text style={styles.missedDayText}>{dayDate}</Text>
+                          </View>
+                        )}
+                      </View>
+                    )}
+                    <Text style={styles.dayName}>
+                      {dayName}
+                    </Text>
+                    {isToday && (
+                      <View 
+                        style={[
+                          styles.todayIndicator, 
+                          {backgroundColor: isKhatm ? enhancedColors.gold.vibrant : enhancedColors.primary.brightAccent}
+                        ]} 
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
           </View>
           
@@ -787,12 +825,12 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
           <TouchableOpacity 
             style={[styles.button, isKhatm && styles.khatmButton, { width: '95%' }]} 
             onPress={handleContinueReading}
-            activeOpacity={0.7}
+            activeOpacity={0.6}
           >
             <LinearGradient
               colors={isKhatm ? 
-                enhancedColors.gradients.khatmButton : 
-                enhancedColors.gradients.button}
+                [enhancedColors.gold.deep, enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const : 
+                [enhancedColors.primary.deepNavy, enhancedColors.primary.vibrantBlue, enhancedColors.primary.accent] as const}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.buttonGradient}
@@ -806,10 +844,7 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
                   style={styles.buttonIcon} 
                 />
               </Animated.View>
-              <Animated.View style={[styles.buttonRipple, {
-                transform: [{ scale: buttonRippleScale }],
-                opacity: buttonRippleOpacity
-              }]} />
+              <View style={styles.buttonGlow} />
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -844,7 +879,7 @@ const styles = StyleSheet.create({
     height: '100%',
   },
   notification: {
-    backgroundColor: enhancedColors.background.modal,
+    backgroundColor: 'transparent',
     borderRadius: radius.xl,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
@@ -852,9 +887,11 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     overflow: 'hidden',
     ...shadows.large,
+    borderWidth: 1,
+    borderColor: 'rgba(114, 187, 225, 0.2)',
   },
   khatmNotification: {
-    backgroundColor: '#FFFDE7',
+    borderColor: 'rgba(212, 175, 55, 0.25)',
   },
   notificationBorder: {
     position: 'absolute',
@@ -898,7 +935,6 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     opacity: 0.05,
-    backgroundImage: patterns.geometric,
   },
   shineEffect: {
     position: 'absolute',
@@ -996,9 +1032,12 @@ const styles = StyleSheet.create({
   },
   streakSection: {
     marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    ...shadows.medium,
   },
   khatmStreakSection: {
-    ...shadows.small,
+    ...shadows.medium,
   },
   streakContainer: {
     flexDirection: 'row',
@@ -1006,48 +1045,64 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderRadius: radius.lg,
     padding: spacing.md,
+    borderWidth: 1,
+    borderColor: 'rgba(114, 187, 225, 0.15)',
   },
   streakInfo: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: spacing.xs, // Add padding
+    paddingVertical: spacing.xs,
   },
   streakInfoDivider: {
     width: 1,
     height: '70%',
-    backgroundColor: colors.border,
+    backgroundColor: 'rgba(114, 187, 225, 0.3)',
     marginHorizontal: spacing.sm,
   },
   khatmDivider: {
     backgroundColor: 'rgba(212, 175, 55, 0.3)',
   },
+  streakCounterBadge: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: spacing.xs,
+    ...shadows.large,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
+  },
   streakCount: {
-    fontSize: fonts.size.xxl + 6, // Even larger
-    fontWeight: '800', // Bolder
-    color: enhancedColors.primary.deepNavy,
-    marginBottom: spacing.xs / 2,
+    fontSize: fonts.size.xl + 4,
+    fontWeight: '800',
+    color: '#FFFFFF',
     fontFamily: fonts.boldFamily,
     letterSpacing: 0.5,
-    textShadowColor: 'rgba(0, 0, 0, 0.08)',
+    textShadowColor: 'rgba(0, 0, 0, 0.15)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },
   khatmStreakCount: {
-    color: enhancedColors.gold.deep, // Deeper gold for better readability
+    color: '#FFFFFF',
+  },
+  streakIconContainer: {
+    marginBottom: spacing.xs / 2,
   },
   streakLabel: {
     fontSize: fonts.size.sm,
-    color: colors.text.muted,
-    fontFamily: fonts.primaryFamily,
+    color: enhancedColors.primary.deepNavy,
+    fontFamily: fonts.boldFamily,
     letterSpacing: 0.3,
-    fontWeight: '500',
+    fontWeight: '600',
+    marginTop: spacing.xs / 2,
   },
   levelContainer: {
     marginBottom: spacing.md,
     borderRadius: radius.lg,
     overflow: 'hidden',
-    ...shadows.small,
+    ...shadows.medium,
   },
   levelGradient: {
     flexDirection: 'row',
@@ -1055,6 +1110,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.md,
     paddingHorizontal: spacing.md,
     borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(114, 187, 225, 0.2)',
   },
   levelIconContainer: {
     marginRight: spacing.sm,
@@ -1072,24 +1129,25 @@ const styles = StyleSheet.create({
   },
   levelCaption: {
     fontSize: fonts.size.xs,
-    color: colors.text.muted,
+    color: colors.text.secondary,
     marginBottom: 2,
     fontFamily: fonts.primaryFamily,
+    fontWeight: '500',
   },
   levelText: {
     fontSize: fonts.size.md,
-    color: colors.primary.deep,
+    color: enhancedColors.primary.deepNavy,
     fontWeight: '700',
     fontFamily: fonts.boldFamily,
     letterSpacing: 0.3,
   },
   khatmLevelText: {
-    color: '#D4AF37',
+    color: enhancedColors.gold.deep,
   },
   weekText: {
     fontSize: fonts.size.md,
     fontWeight: '600',
-    color: colors.primary.deep,
+    color: enhancedColors.primary.deepNavy,
     marginBottom: spacing.sm,
     fontFamily: fonts.secondaryFamily,
     letterSpacing: 0.3,
@@ -1099,87 +1157,79 @@ const styles = StyleSheet.create({
   },
   weeklyProgressContainer: {
     marginBottom: spacing.md,
+    marginTop: spacing.xs,
   },
   daysContainer: {
     flexDirection: 'row',
     justifyContent: 'space-around',
     alignItems: 'flex-start',
     paddingHorizontal: spacing.xs,
-    marginTop: spacing.xs,
+    marginTop: spacing.sm,
   },
   dayCircleContainer: {
     alignItems: 'center',
     width: '13%', 
     minWidth: 38,
-    maxWidth: 52,
-    marginHorizontal: 2,
+    maxWidth: 45,
   },
   dayCircle: {
-    width: 42,
-    height: 42,
+    width: 38,
+    height: 38,
+    borderRadius: radius.round,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 4,
+    overflow: 'hidden',
+  },
+  dayCircleGradient: {
+    width: '100%',
+    height: '100%',
     borderRadius: radius.round,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  readDay: {
-    backgroundColor: colors.primary.deep,
-    ...shadows.small,
-  },
-  khatmReadDay: {
-    backgroundColor: '#D4AF37',
-  },
-  missedDay: {
-    backgroundColor: colors.background.secondary,
+  activeDayCircle: {
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  todayCircle: {
-    borderWidth: 2,
-    borderColor: colors.primary.sky,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
     ...shadows.small,
   },
-  todayLabel: {
-    fontSize: 9,
-    color: colors.text.muted,
-    marginTop: 3,
-    fontWeight: '500',
-    letterSpacing: 0.2,
-    fontFamily: fonts.primaryFamily,
+  inactiveDayCircle: {
+    backgroundColor: enhancedColors.background.dayCircle,
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.round,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(114, 187, 225, 0.2)',
   },
   dayName: {
     fontSize: 10,
+    color: colors.text.muted,
+    fontWeight: '500',
+    letterSpacing: 0.2,
     fontFamily: fonts.primaryFamily,
-    marginBottom: 1,
-    letterSpacing: 0.2,
-  },
-  dayDate: {
-    fontSize: 14,
-    fontWeight: '700',
-    fontFamily: fonts.secondaryFamily,
-    letterSpacing: 0.2,
+    marginTop: 2,
   },
   readDayText: {
     color: colors.primary.white,
+    fontSize: 14,
+    fontWeight: '700',
+    fontFamily: fonts.secondaryFamily,
   },
   missedDayText: {
     color: colors.text.muted,
+    fontSize: 14,
+    fontWeight: '500',
+    fontFamily: fonts.secondaryFamily,
   },
-  checkmarkContainer: {
+  todayIndicator: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: 'rgba(66, 84, 185, 0.8)', // Base color that will be overridden
     position: 'absolute',
-    bottom: -3,
-    right: -3,
-    backgroundColor: colors.success,
-    borderRadius: radius.round,
-    width: 14,
-    height: 14,
-    justifyContent: 'center',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: colors.primary.white,
-    ...shadows.small,
-  },
-  khatmCheckmark: {
-    backgroundColor: '#00C853',
+    bottom: -10,
   },
   newAchievementContainer: {
     flexDirection: 'row',
@@ -1222,26 +1272,26 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     marginBottom: spacing.md,
     overflow: 'hidden',
-    ...shadows.small,
+    ...shadows.medium,
     borderWidth: 1,
     borderColor: 'rgba(114, 187, 225, 0.15)', // Subtle border
   },
   khatmWisdomContainer: {
     borderWidth: 1,
-    borderColor: 'rgba(212, 175, 55, 0.2)',
+    borderColor: 'rgba(212, 175, 55, 0.25)',
     borderRadius: radius.lg,
   },
   wisdomGradient: {
     padding: spacing.md,
     borderLeftWidth: 3,
-    borderLeftColor: enhancedColors.primary.skyGlow,
+    borderLeftColor: enhancedColors.primary.accent,
     borderRadius: radius.lg,
   },
   khatmWisdomGradient: {
-    borderLeftColor: '#D4AF37',
+    borderLeftColor: enhancedColors.gold.vibrant,
   },
   wisdomText: {
-    fontSize: fonts.size.sm + 1, // Slightly larger
+    fontSize: fonts.size.sm + 1,
     fontStyle: 'italic',
     color: enhancedColors.primary.deepNavy,
     lineHeight: 26,
@@ -1249,10 +1299,12 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
     fontFamily: Platform.OS === 'ios' ? 'Avenir-LightOblique' : 'sans-serif-light',
     paddingHorizontal: spacing.sm,
+    fontWeight: '500',
   },
   khatmWisdomText: {
     fontWeight: '500',
     color: '#805E00',
+    fontStyle: 'normal',
   },
   footer: {
     alignItems: 'center',
@@ -1261,9 +1313,10 @@ const styles = StyleSheet.create({
   },
   button: {
     borderRadius: radius.xl,
-    ...shadows.medium,
+    ...shadows.large,
     width: '100%',
-    marginTop: spacing.sm, // Add a bit more space
+    marginTop: spacing.sm,
+    overflow: 'hidden',
   },
   khatmButton: {
     ...shadows.large,
@@ -1274,23 +1327,36 @@ const styles = StyleSheet.create({
     borderRadius: radius.xl,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.2)', // Subtle border for depth
+    borderColor: 'rgba(255, 255, 255, 0.25)',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  buttonGlow: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: radius.xl,
+    transform: [{ scaleX: 1.5 }, { translateY: 10 }],
   },
   buttonTextContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    zIndex: 1,
   },
   buttonText: {
     color: colors.primary.white,
     fontSize: fonts.size.md,
-    fontWeight: '800', // Bolder
+    fontWeight: '800',
     fontFamily: fonts.boldFamily,
-    letterSpacing: 0.8, // Increased spacing
+    letterSpacing: 1.2,
     textTransform: 'uppercase',
-    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowColor: 'rgba(0, 0, 0, 0.3)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
   buttonIcon: {
     marginLeft: spacing.xs,
@@ -1313,6 +1379,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: spacing.sm,
+    gap: spacing.xs,
   },
   quoteDecoration: {
     alignItems: 'flex-start',
@@ -1342,7 +1409,7 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     borderRadius: radius.xl,
-    backgroundColor: enhancedColors.primary.royalBlue,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
   },
 });
 
