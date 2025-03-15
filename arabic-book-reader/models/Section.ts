@@ -6,6 +6,7 @@ export interface Section {
   isCompleted: boolean;
   audioUrl?: string;
   manzilNumber?: number; // Optional manzil number for tracking progress
+  completionDate?: Date; // Date when the section was completed
 }
 
 // Sample data for the book sections

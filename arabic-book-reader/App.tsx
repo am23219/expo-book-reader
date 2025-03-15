@@ -5,6 +5,7 @@ import { StyleSheet, View, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
 import BookPage from './pages/BookPage';
+import { colors } from './constants/theme';
 
 // Keep the splash screen visible until we're ready
 SplashScreen.preventAutoHideAsync().catch(() => {
@@ -60,7 +61,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider onLayout={onLayoutRootView}>
-      <StatusBar style="auto" />
+      <StatusBar style="light" />
       <BookPage />
     </SafeAreaProvider>
   );
@@ -69,6 +70,6 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F5EB',
+    backgroundColor: colors.background.primary,
   },
 });

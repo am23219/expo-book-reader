@@ -15,6 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShakeView from '../components/ShakeView';
 import { LinearGradient } from 'expo-linear-gradient';
 import ReadingStreakNotification from '../components/ReadingStreakNotification';
+import Header from '../components/Header';
+import { colors, fonts, spacing, radius, shadows } from '../constants/theme';
 
 const startOfDay = (date: Date): Date => {
   const result = new Date(date);
@@ -50,6 +52,32 @@ const formatDate = (date: Date, format: string): string => {
     return date.getDate().toString();
   }
   return date.toLocaleDateString();
+};
+
+// Format completion date in a nice, aesthetic way
+const formatCompletionDate = (date: Date | undefined): string => {
+  if (!date) return '';
+  
+  const today = startOfDay(new Date());
+  const yesterday = startOfDay(addDays(today, -1));
+  const completionDate = new Date(date);
+  
+  // Handle special cases
+  if (isSameDay(completionDate, today)) {
+    return 'Today';
+  }
+  
+  if (isSameDay(completionDate, yesterday)) {
+    return 'Yesterday';
+  }
+  
+  // For other dates, format as "Sat, Mar 15"
+  const dayName = formatDate(completionDate, 'EEE');
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[completionDate.getMonth()];
+  const day = completionDate.getDate();
+  
+  return `${dayName}, ${month} ${day}`;
 };
 
 export default function BookPage() {
@@ -228,8 +256,6 @@ export default function BookPage() {
     toggleSectionDrawer(); // Close drawer after selection
   };
   
-
-  
   // Add this function to manage the reading history and streaks
   const updateReadingStreak = async () => {
     try {
@@ -392,9 +418,12 @@ export default function BookPage() {
   const handleSectionCompletion = async (section: Section) => {
     console.log(`Section ${section.title} completed!`);
     
-    // Update sections
+    // Get current date for completion timestamp
+    const completionDate = new Date();
+    
+    // Update sections with completion date
     const updatedSections = sections.map(s => 
-      s.id === section.id ? { ...s, isCompleted: true } : s
+      s.id === section.id ? { ...s, isCompleted: true, completionDate } : s
     );
     
     // Save to storage
@@ -452,10 +481,11 @@ export default function BookPage() {
       // Save to storage
       AsyncStorage.setItem('khatm_count', newKhatmCount.toString());
       
-      // Reset all sections for next khatm
+      // Reset all sections for next khatm - explicitly clear completionDate
       const resetSections = updatedSections.map(section => ({
         ...section,
         isCompleted: false,
+        completionDate: undefined
       }));
       
       // Stronger vibration pattern for khatm
@@ -523,7 +553,12 @@ export default function BookPage() {
     
     const updatedSections = sections.map(section => 
       section.id === sectionId 
-        ? { ...section, isCompleted: !section.isCompleted } 
+        ? { 
+            ...section, 
+            isCompleted: !section.isCompleted,
+            // Clear completionDate if toggling from completed to incomplete
+            completionDate: !section.isCompleted ? new Date() : undefined
+          } 
         : section
     );
     
@@ -574,10 +609,16 @@ export default function BookPage() {
       // Clear all stored data
       await clearAllData();
       
-      // Reset state to defaults
-      setSections(SECTIONS);
+      // Reset state to defaults - ensure completionDate is cleared too
+      const resetSections = SECTIONS.map(section => ({
+        ...section,
+        isCompleted: false,
+        completionDate: undefined
+      }));
+      
+      setSections(resetSections);
       setCurrentPage(1);
-      setCurrentSection(SECTIONS[0]);
+      setCurrentSection(resetSections[0]);
       setKhatmCount(0);
       
       // Close the section drawer
@@ -593,312 +634,101 @@ export default function BookPage() {
     }
   };
   
+  // Calculated progress value
+  const progress = useMemo(() => {
+    if (!sections || sections.length === 0) return 0;
+    const completedCount = sections.filter(s => s.isCompleted).length;
+    return completedCount / sections.length;
+  }, [sections]);
+  
   return (
-    <SafeAreaView style={styles.container}>
-      <StatusBar hidden={true} />
+    <View style={styles.container}>
+      <StatusBar style="light" />
       
-      {/* Decorative Background for larger screens */}
-      {isLargeScreen && (
-        <View style={styles.decorativeBackground}>
-          <View style={[styles.patternContainer, { opacity: patternOpacity }]}>
-            {/* Top pattern */}
-            <View style={[styles.geometricPattern, styles.topPattern]} />
-            {/* Bottom pattern */}
-            <View style={[styles.geometricPattern, styles.bottomPattern]} />
-          </View>
-          
-          {/* Side gradients to soften the edges */}
-          <LinearGradient
-            colors={['rgba(249, 245, 235, 0.98)', 'rgba(249, 245, 235, 0.75)', 'rgba(249, 245, 235, 0.75)', 'rgba(249, 245, 235, 0.98)']}
-            start={{x: 0, y: 0.5}}
-            end={{x: 1, y: 0.5}}
-            style={styles.sideGradient}
+      {/* Updated Header Component with manzil-specific progress */}
+      <Header 
+        title="Barakaat Makkiyyah"
+        subtitle={currentSection.title}
+        onMenuPress={toggleSectionDrawer}
+        currentPage={currentPage}
+        startPage={currentSection.startPage}
+        endPage={currentSection.endPage}
+        totalSections={sections.length}
+        completedSections={sections.filter(s => s.isCompleted).length}
+      />
+      
+      {/* Main Content */}
+      <View style={styles.content}>
+        {useFallbackViewer ? (
+          <PageViewer 
+            currentPage={currentPage}
+            onPageChange={handlePageChange}
+            currentSection={currentSection}
           />
-        </View>
-      )}
-      
-      {/* Enhanced Header with improved design for larger screens */}
-      <View style={[
-        styles.header, 
-        { 
-          paddingTop: headerTopPadding,
-          paddingBottom: headerPadding,
-          height: 'auto', // Allow height to adjust based on content
-          minHeight: headerHeight,
-        }
-      ]}>
-        <TouchableOpacity 
-          style={[styles.menuButton, { transform: [{ scale: menuScale }] }]} 
-          onPress={toggleSectionDrawer}
-        >
-          <Ionicons name="menu" size={iconSize} color="#5A9EBF" />
-        </TouchableOpacity>
-        
-        <View style={[
-          styles.pageIndicator, 
-          { 
-            marginHorizontal: 10 * menuScale,
-            paddingVertical: isLargeScreen ? 12 : 6,
-          }
-        ]}>
-          <View style={styles.titleProgressContainer}>
-            <Text style={[
-              styles.pageIndicatorText, 
-              { fontSize: titleFontSize }
-            ]}>
-              {currentSection.title}
-            </Text>
-            <Text style={[
-              styles.progressText, 
-              { fontSize: progressTextSize }
-            ]}>
-              {currentPage - currentSection.startPage + 1}/{currentSection.endPage - currentSection.startPage + 1}
-            </Text>
-          </View>
-          <View style={[
-            styles.progressContainer,
-            isLargeScreen && { marginTop: 10 }
-          ]}>
-            <View 
-              style={[
-                styles.progressBar, 
-                { 
-                  width: `${Math.max(0, Math.min(100, ((currentPage - currentSection.startPage + 1) / 
-                    (currentSection.endPage - currentSection.startPage + 1)) * 100))}%`,
-                  height: progressBarHeight
-                }
-              ]} 
-            />
-          </View>
-        </View>
+        ) : (
+          <EnhancedPdfViewer
+            currentPage={currentPage}
+            onPageChange={handlePageChange}
+            onError={() => setUseFallbackViewer(true)}
+            currentSection={currentSection}
+          />
+        )}
       </View>
       
-      {/* PDF Viewer with improved container for larger screens */}
-      <View style={[
-        styles.content, 
-        isLargeScreen && { 
-          paddingHorizontal: isExtraLargeScreen ? 35 : 25,
-          paddingVertical: isExtraLargeScreen ? 10 : 8,
-          flex: 1, // Ensure it takes remaining space
-        }
-      ]}>
-        <View style={[
-          styles.pdfContainer, 
-          isLargeScreen && styles.pdfContainerLarge
-        ]}>
-          {useFallbackViewer ? (
-            <PageViewer 
-              currentPage={currentPage} 
-              onPageChange={handlePageChange}
-              currentSection={currentSection}
-            />
-          ) : (
-            <EnhancedPdfViewer 
-              currentPage={currentPage} 
-              onPageChange={handlePageChange}
-              onError={() => setUseFallbackViewer(true)}
-              currentSection={currentSection}
-            />
-          )}
-        </View>
-      </View>
-      
-      {/* Section Navigation Drawer */}
+      {/* Drawer Navigation with improved styling */}
       <Animated.View 
         style={[
-          styles.sectionDrawer, 
-          { 
-            transform: [{ translateX: sectionDrawerAnim }],
-            paddingTop: insets.top
-          }
+          styles.sectionDrawer,
+          { transform: [{ translateX: sectionDrawerAnim }] }
         ]}
       >
-        <SectionNavigation 
+        <SectionNavigation
           sections={sections}
           currentSectionId={currentSection.id}
           onSectionPress={handleSectionPress}
           onToggleComplete={handleToggleComplete}
           onClose={toggleSectionDrawer}
           khatmCount={khatmCount}
-          onReset={handleReset}
         />
       </Animated.View>
       
-      {/* Standalone Audio Player Modal */}
-      <SimpleAudioPlayer 
-        currentSection={currentSection}
-        sections={sections}
-        onClose={toggleAudioModal}
-        visible={isAudioModalVisible}
-      />
-      
-      {/* Khatm Completion Modal with Shake Animation */}
-      {showKhatmModal && (
+      {/* Audio Modal */}
+      {isAudioModalVisible && (
         <View style={styles.modalOverlay}>
-          <TouchableOpacity 
-            style={styles.modalBackground}
-            activeOpacity={1} 
-            onPress={() => {
-              setShowKhatmModal(false);
-            }}
-          />
-          <ShakeView shake={shakeKhatmModal} intensity={10} count={5} style={styles.modal}>
-            <Text style={styles.modalTitle}>Khatm Completed!</Text>
-            <Text style={styles.modalText}>
-              Congratulations! You have completed a full reading of Barakaat Makiyyah.
-            </Text>
-            <Text style={styles.modalSubText}>
-              May Allah accept your efforts and bless you.
-            </Text>
-            
-            <View style={styles.khatmBadge}>
-              <Text style={styles.khatmBadgeText}>{khatmCount}</Text>
-              <Text style={styles.khatmBadgeLabel}>Completions</Text>
-            </View>
-            
-            <TouchableOpacity 
-              style={styles.modalButton}
-              onPress={() => {
-                setShowKhatmModal(false);
-              }}
-            >
-              <Text style={styles.modalButtonText}>Continue Reading</Text>
-            </TouchableOpacity>
-          </ShakeView>
+          <View style={styles.audioModalContainer}>
+            <SimpleAudioPlayer 
+              onClose={toggleAudioModal}
+              currentSection={currentSection}
+              sections={sections}
+              visible={isAudioModalVisible}
+            />
+          </View>
         </View>
       )}
       
-
-      
-      {showStreakNotification && (
-        <ReadingStreakNotification
-          visible={showStreakNotification}
-          title={notificationData.title}
-          message={notificationData.message}
-          readingDays={getPast7Days()}
-          currentStreak={currentStreak}
-          longestStreak={longestStreak}
-          onClose={() => setShowStreakNotification(false)}
-          isKhatm={notificationData.isKhatm}
-        />
-      )}
-    </SafeAreaView>
+      {/* Reading Streak Notification */}
+      <ReadingStreakNotification 
+        visible={showStreakNotification}
+        title={notificationData.title}
+        message={notificationData.message}
+        readingDays={getPast7Days()}
+        currentStreak={currentStreak}
+        longestStreak={longestStreak}
+        onClose={() => setShowStreakNotification(false)}
+        isKhatm={notificationData.isKhatm}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F5EB',
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
-    backgroundColor: '#F9F5EB',
-    justifyContent: 'center',
-    zIndex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    backgroundColor: 'rgba(249, 245, 235, 0.92)',
-    borderBottomWidth: 0,
-    justifyContent: 'space-between',
-    zIndex: 5, // Ensure header is above content
-  },
-  menuButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
-  },
-  pageIndicator: {
-    flex: 1,
-    marginHorizontal: 10,
-    backgroundColor: 'rgba(245, 241, 230, 0.7)',
-    borderRadius: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  titleProgressContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 4,
-  },
-  pageIndicatorText: {
-    color: '#4A6E8A',
-    fontWeight: '600',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif-medium',
-  },
-  progressContainer: {
-    width: '100%',
-    backgroundColor: 'rgba(200, 225, 235, 0.5)',
-    borderRadius: 3,
-    overflow: 'hidden',
-  },
-  progressBar: {
-    backgroundColor: '#5A9EBF',
-    borderRadius: 3,
-  },
-  progressText: {
-    color: '#607D8B',
-    fontWeight: '500',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
-  },
-  pdfContainer: {
-    flex: 1,
-  },
-  pdfContainerLarge: {
-    flex: 1,
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  decorativeBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 0,
-  },
-  patternContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  geometricPattern: {
-    position: 'absolute',
-    width: '100%',
-    height: '25%',
-    opacity: 0.08,
-  },
-  topPattern: {
-    top: 0,
-    backgroundColor: '#E8D5B5',
-  },
-  bottomPattern: {
-    bottom: 0,
-    backgroundColor: '#E8D5B5',
-  },
-  sideGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
+    backgroundColor: colors.background.primary,
   },
   sectionDrawer: {
     position: 'absolute',
@@ -906,47 +736,12 @@ const styles = StyleSheet.create({
     left: 0,
     bottom: 0,
     width: 280,
-    backgroundColor: '#F9F5EB',
-    zIndex: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 2, height: 0 },
-    shadowOpacity: 0.2,
-    shadowRadius: 5,
-    elevation: 5,
-    paddingTop: 50,
-  },
-  audioModal: {
-    position: 'absolute',
-    top: '50%',
-    left: '5%',
-    right: '5%',
-    transform: [{ translateY: -150 }],
-    backgroundColor: '#F9F5EB',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  audioModalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 15,
-    paddingBottom: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#e9ecef',
-  },
-  audioModalTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#343a40',
-  },
-  audioPlayerContent: {
-    flex: 1,
-    padding: 12,
+    backgroundColor: colors.primary.deep,
+    zIndex: 100,
+    ...shadows.large,
+    borderTopRightRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+    overflow: 'hidden',
   },
   modalOverlay: {
     position: 'absolute',
@@ -954,83 +749,17 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.7)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  modal: {
-    backgroundColor: '#F9F5EB',
-    borderRadius: 16,
-    padding: 24,
-    width: '85%',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 10,
-  },
-  modalTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0D8A4E',
-    marginBottom: 16,
-    textAlign: 'center',
-  },
-  modalText: {
-    fontSize: 18,
-    color: '#343a40',
-    marginBottom: 12,
-    textAlign: 'center',
-    lineHeight: 24,
-  },
-  modalSubText: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginBottom: 20,
-    textAlign: 'center',
-    fontStyle: 'italic',
-  },
-  khatmBadge: {
-    backgroundColor: '#F5F1E0',
-    borderRadius: 100,
-    width: 120,
-    height: 120,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
-    borderWidth: 2,
-    borderColor: '#0D8A4E',
-  },
-  khatmBadgeText: {
-    fontSize: 40,
-    fontWeight: 'bold',
-    color: '#0D8A4E',
-  },
-  khatmBadgeLabel: {
-    fontSize: 14,
-    color: '#6c757d',
-    marginTop: 4,
-  },
-  modalButton: {
-    backgroundColor: '#0D8A4E',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
-    marginTop: 16,
-  },
-  modalButtonText: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  modalBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 50,
+  },
+  audioModalContainer: {
+    width: '90%',
+    maxWidth: 400,
+    backgroundColor: colors.primary.white,
+    borderRadius: radius.lg,
+    ...shadows.large,
+    overflow: 'hidden',
   },
 });

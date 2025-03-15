@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity, Animated } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { Ionicons } from '@expo/vector-icons';
 import { Section } from '../models/Section';
+import { colors, fonts, spacing, radius, shadows } from '../constants/theme';
 
 interface EnhancedPdfViewerProps {
   currentPage: number;
@@ -22,6 +23,10 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const [totalPages, setTotalPages] = useState(0);
   const { width, height } = Dimensions.get('window');
   
+  // Animation values for button press effects
+  const prevButtonScale = React.useRef(new Animated.Value(1)).current;
+  const nextButtonScale = React.useRef(new Animated.Value(1)).current;
+  
   // PDF source - adjust the path to your actual PDF file
   const source = require('../assets/pdf/Barakaat_Makiyyah.pdf');
   
@@ -40,12 +45,41 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       pdfRef.current.setPage(currentPage);
     }
   }, [currentPage, isInitialized]);
+  
+  const animateButton = (animatedValue: Animated.Value) => {
+    Animated.sequence([
+      Animated.timing(animatedValue, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true
+      }),
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+  
+  const handlePrevPage = () => {
+    if (currentPage > 1) {
+      animateButton(prevButtonScale);
+      onPageChange(currentPage - 1);
+    }
+  };
+  
+  const handleNextPage = () => {
+    if (currentPage < totalPages) {
+      animateButton(nextButtonScale);
+      onPageChange(currentPage + 1);
+    }
+  };
 
   return (
     <View style={styles.container}>
       {loading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0D8A4E" />
+          <ActivityIndicator size="large" color={colors.primary.deep} />
           <Text style={styles.loadingText}>Loading PDF...</Text>
         </View>
       )}
@@ -101,7 +135,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           horizontal={true}
           fitPolicy={2}
           spacing={0}
-          renderActivityIndicator={(progress) => <ActivityIndicator size="large" color="#0D8A4E" />}
+          renderActivityIndicator={(progress) => <ActivityIndicator size="large" color={colors.primary.deep} />}
           enableAntialiasing={true}
           trustAllCerts={false}
           enableRTL={true}
@@ -111,29 +145,60 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       
       {/* Navigation buttons */}
       <View style={styles.navigationContainer}>
-        <TouchableOpacity 
-          style={[styles.navButton, currentPage >= totalPages ? styles.navButtonDisabled : styles.navButtonLeft]}
-          onPress={() => {
-            if (currentPage < totalPages) {
-              onPageChange(currentPage + 1);
-            }
-          }}
-          disabled={currentPage >= totalPages}
-        >
-          <Ionicons name="chevron-back" size={22} color={currentPage >= totalPages ? "transparent" : "#0D8A4E"} />
-        </TouchableOpacity>
+        {/* Left nav button with animation */}
+        <Animated.View style={{ transform: [{ scale: prevButtonScale }] }}>
+          <TouchableOpacity 
+            style={[styles.navButton, currentPage >= totalPages ? styles.navButtonDisabled : styles.navButtonLeft]}
+            onPress={() => {
+              if (currentPage < totalPages) {
+                handleNextPage();
+              }
+            }}
+            disabled={currentPage >= totalPages}
+            activeOpacity={0.7}
+            accessibilityLabel="Next page"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: currentPage >= totalPages }}
+          >
+            <Ionicons 
+              name="chevron-back" 
+              size={22} 
+              color={currentPage >= totalPages ? "transparent" : colors.primary.deep} 
+            />
+          </TouchableOpacity>
+        </Animated.View>
         
-        <TouchableOpacity 
-          style={[styles.navButton, currentPage <= 1 ? styles.navButtonDisabled : styles.navButtonRight]}
-          onPress={() => {
-            if (currentPage > 1) {
-              onPageChange(currentPage - 1);
-            }
-          }}
-          disabled={currentPage <= 1}
-        >
-          <Ionicons name="chevron-forward" size={22} color={currentPage <= 1 ? "transparent" : "#0D8A4E"} />
-        </TouchableOpacity>
+        {/* Right nav button with animation */}
+        <Animated.View style={{ transform: [{ scale: nextButtonScale }] }}>
+          <TouchableOpacity 
+            style={[styles.navButton, currentPage <= 1 ? styles.navButtonDisabled : styles.navButtonRight]}
+            onPress={() => {
+              if (currentPage > 1) {
+                handlePrevPage();
+              }
+            }}
+            disabled={currentPage <= 1}
+            activeOpacity={0.7}
+            accessibilityLabel="Previous page"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: currentPage <= 1 }}
+          >
+            <Ionicons 
+              name="chevron-forward" 
+              size={22} 
+              color={currentPage <= 1 ? "transparent" : colors.primary.deep} 
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+      
+      {/* Page number indicator */}
+      <View style={styles.pageIndicator}>
+        <View style={styles.pageIndicatorInner}>
+          <Text style={styles.pageIndicatorText}>
+            {currentPage} / {totalPages}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -144,13 +209,13 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#F9F5EB',
+    backgroundColor: colors.background.primary,
   },
   pdf: {
     flex: 1,
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
-    backgroundColor: '#F9F5EB',
+    backgroundColor: colors.background.primary,
   },
   loadingContainer: {
     position: 'absolute',
@@ -160,30 +225,33 @@ const styles = StyleSheet.create({
     bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(249, 245, 235, 0.8)',
+    backgroundColor: `rgba(255, 255, 255, 0.8)`,
     zIndex: 10,
   },
   loadingText: {
-    marginTop: 10,
-    fontSize: 14,
-    color: '#0D8A4E',
+    marginTop: spacing.sm,
+    fontSize: fonts.size.md,
+    color: colors.primary.deep,
+    fontFamily: fonts.secondaryFamily,
   },
   errorContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.lg,
   },
   errorText: {
-    fontSize: 16,
-    color: '#dc3545',
-    marginBottom: 10,
+    fontSize: fonts.size.md,
+    color: colors.error,
+    marginBottom: spacing.sm,
     textAlign: 'center',
+    fontFamily: fonts.secondaryFamily,
   },
   errorHint: {
-    fontSize: 14,
-    color: '#6c757d',
+    fontSize: fonts.size.sm,
+    color: colors.text.muted,
     textAlign: 'center',
+    fontFamily: fonts.primaryFamily,
   },
   navigationContainer: {
     position: 'absolute',
@@ -197,25 +265,47 @@ const styles = StyleSheet.create({
     pointerEvents: 'box-none',
   },
   navButton: {
-    width: 30,
+    width: 50,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
+    ...shadows.small,
   },
   navButtonLeft: {
-    borderTopRightRadius: 15,
-    borderBottomRightRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    paddingLeft: 3,
+    borderTopRightRadius: radius.lg,
+    borderBottomRightRadius: radius.lg,
+    backgroundColor: `rgba(255, 255, 255, 0.9)`,
+    paddingLeft: spacing.xs,
   },
   navButtonRight: {
-    borderTopLeftRadius: 15,
-    borderBottomLeftRadius: 15,
-    backgroundColor: 'rgba(255, 255, 255, 0.4)',
-    paddingRight: 3,
+    borderTopLeftRadius: radius.lg,
+    borderBottomLeftRadius: radius.lg,
+    backgroundColor: `rgba(255, 255, 255, 0.9)`,
+    paddingRight: spacing.xs,
   },
   navButtonDisabled: {
     backgroundColor: 'transparent',
+  },
+  pageIndicator: {
+    position: 'absolute',
+    bottom: spacing.lg,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  pageIndicatorInner: {
+    backgroundColor: 'rgba(42, 45, 116, 0.8)',
+    borderRadius: radius.round,
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    ...shadows.small,
+  },
+  pageIndicatorText: {
+    color: colors.primary.white,
+    fontSize: fonts.size.sm,
+    fontWeight: 'bold',
+    fontFamily: fonts.secondaryFamily,
   },
 });
 

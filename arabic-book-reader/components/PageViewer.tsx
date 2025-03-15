@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity, Image, ScrollView } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity, Image, ScrollView, Animated } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Section, SECTIONS } from '../models/Section';
+import { colors, fonts, shadows, radius, spacing } from '../constants/theme';
 
 export interface PageViewerProps {
   currentPage: number;
@@ -14,11 +15,31 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
   const [error, setError] = useState<string | null>(null);
   const { width, height } = Dimensions.get('window');
   
+  // Animation values for button press effects
+  const prevButtonScale = React.useRef(new Animated.Value(1)).current;
+  const nextButtonScale = React.useRef(new Animated.Value(1)).current;
+  
   // Get the maximum page from the last section's endPage in the SECTIONS model
   const MAX_PAGE = SECTIONS[SECTIONS.length - 1].endPage;
   
+  const animateButton = (animatedValue: Animated.Value) => {
+    Animated.sequence([
+      Animated.timing(animatedValue, {
+        toValue: 0.9,
+        duration: 100,
+        useNativeDriver: true
+      }),
+      Animated.timing(animatedValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+  
   const handlePrevPage = () => {
     if (currentPage > 1) {
+      animateButton(prevButtonScale);
       onPageChange(currentPage - 1);
     }
   };
@@ -26,6 +47,7 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
   const handleNextPage = () => {
     // Use the maximum page determined from the model
     if (currentPage < MAX_PAGE) {
+      animateButton(nextButtonScale);
       onPageChange(currentPage + 1);
     }
   };
@@ -34,7 +56,7 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
     <View style={styles.container}>
       {loading && (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#0066cc" />
+          <ActivityIndicator size="large" color={colors.primary.deep} />
           <Text style={styles.loadingText}>Loading PDF...</Text>
         </View>
       )}
@@ -42,12 +64,13 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
       <View style={styles.content}>
         <ScrollView contentContainerStyle={styles.scrollContent}>
           <View style={styles.pageContainer}>
+            <View style={styles.pageHeaderContainer}>
+              <View style={styles.sectionTitleContainer}>
+                <Text style={styles.pageNumber}>Page {currentPage}</Text>
+              </View>
+            </View>
+            
             <View style={styles.pageContent}>
-              <Text style={styles.sectionTitle}>
-                {currentSection.title}
-              </Text>
-              <Text style={styles.pageNumber}>Page {currentPage}</Text>
-              
               <View style={styles.placeholderContent}>
                 <Text style={styles.placeholderText}>
                   The enhanced PDF viewer could not load the book file.
@@ -62,8 +85,12 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
                       style={[styles.pageButton, currentPage <= 1 && styles.disabledButton]}
                       onPress={handlePrevPage}
                       disabled={currentPage <= 1}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Previous page"
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: currentPage <= 1 }}
                     >
-                      <Ionicons name="arrow-back" size={24} color={currentPage <= 1 ? "#ccc" : "#5A9EBF"} />
+                      <Ionicons name="arrow-back" size={24} color={currentPage <= 1 ? colors.text.muted : colors.primary.deep} />
                       <Text style={[styles.pageButtonText, currentPage <= 1 && styles.disabledText]}>Previous</Text>
                     </TouchableOpacity>
                     
@@ -77,9 +104,13 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
                       style={[styles.pageButton, currentPage >= MAX_PAGE && styles.disabledButton]}
                       onPress={handleNextPage}
                       disabled={currentPage >= MAX_PAGE}
+                      activeOpacity={0.7}
+                      accessibilityLabel="Next page"
+                      accessibilityRole="button"
+                      accessibilityState={{ disabled: currentPage >= MAX_PAGE }}
                     >
                       <Text style={[styles.pageButtonText, currentPage >= MAX_PAGE && styles.disabledText]}>Next</Text>
-                      <Ionicons name="arrow-forward" size={24} color={currentPage >= MAX_PAGE ? "#ccc" : "#5A9EBF"} />
+                      <Ionicons name="arrow-forward" size={24} color={currentPage >= MAX_PAGE ? colors.text.muted : colors.primary.deep} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -89,34 +120,55 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
         </ScrollView>
       </View>
       
-      {/* Left navigation button */}
+      {/* Left navigation button with animation */}
       <View style={styles.leftNavButtonContainer}>
-        <TouchableOpacity 
-          style={[styles.navButton, currentPage <= 1 && styles.disabledButton]} 
-          onPress={handlePrevPage}
-          disabled={currentPage <= 1}
-        >
-          <Ionicons 
-            name="chevron-back" 
-            size={28} 
-            color={currentPage <= 1 ? "#ccc" : "#5A9EBF"} 
-          />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: prevButtonScale }] }}>
+          <TouchableOpacity 
+            style={[styles.navButton, currentPage <= 1 && styles.disabledButton]} 
+            onPress={handlePrevPage}
+            disabled={currentPage <= 1}
+            activeOpacity={0.7}
+            accessibilityLabel="Previous page"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: currentPage <= 1 }}
+          >
+            <Ionicons 
+              name="chevron-back" 
+              size={28} 
+              color={currentPage <= 1 ? colors.text.muted : colors.primary.sky} 
+            />
+          </TouchableOpacity>
+        </Animated.View>
       </View>
       
-      {/* Right navigation button */}
+      {/* Right navigation button with animation */}
       <View style={styles.rightNavButtonContainer}>
-        <TouchableOpacity 
-          style={[styles.navButton, currentPage >= MAX_PAGE && styles.disabledButton]} 
-          onPress={handleNextPage}
-          disabled={currentPage >= MAX_PAGE}
-        >
-          <Ionicons 
-            name="chevron-forward" 
-            size={28} 
-            color={currentPage >= MAX_PAGE ? "#ccc" : "#5A9EBF"} 
-          />
-        </TouchableOpacity>
+        <Animated.View style={{ transform: [{ scale: nextButtonScale }] }}>
+          <TouchableOpacity 
+            style={[styles.navButton, currentPage >= MAX_PAGE && styles.disabledButton]} 
+            onPress={handleNextPage}
+            disabled={currentPage >= MAX_PAGE}
+            activeOpacity={0.7}
+            accessibilityLabel="Next page"
+            accessibilityRole="button"
+            accessibilityState={{ disabled: currentPage >= MAX_PAGE }}
+          >
+            <Ionicons 
+              name="chevron-forward" 
+              size={28} 
+              color={currentPage >= MAX_PAGE ? colors.text.muted : colors.primary.sky} 
+            />
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+      
+      {/* Page number indicator at bottom */}
+      <View style={styles.pageNumberIndicator}>
+        <View style={styles.pageNumberIndicatorInner}>
+          <Text style={styles.pageNumberIndicatorText}>
+            {currentPage} / {MAX_PAGE}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -125,7 +177,7 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F5EB',
+    backgroundColor: colors.background.primary,
   },
   content: {
     flex: 1,
@@ -136,7 +188,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: spacing.md,
   },
   loadingContainer: {
     position: 'absolute',
@@ -151,61 +203,70 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     marginTop: 10,
-    fontSize: 16,
-    color: '#0066cc',
+    fontSize: fonts.size.md,
+    color: colors.primary.deep,
+    fontFamily: fonts.secondaryFamily,
   },
   pageContainer: {
     flex: 1,
     width: '100%',
     maxWidth: 600,
-    backgroundColor: 'white',
-    borderRadius: 8,
+    backgroundColor: colors.primary.white,
+    borderRadius: radius.lg,
     overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    ...shadows.medium,
+  },
+  pageHeaderContainer: {
+    backgroundColor: colors.primary.deep,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+  },
+  sectionTitleContainer: {
+    alignItems: 'center',
   },
   pageContent: {
-    padding: 20,
+    padding: spacing.lg,
     alignItems: 'center',
   },
   sectionTitle: {
-    fontSize: 24,
+    fontSize: fonts.size.xl,
     fontWeight: 'bold',
-    color: '#5A9EBF',
-    marginBottom: 10,
+    color: colors.primary.white,
+    marginBottom: spacing.xs,
     textAlign: 'center',
+    fontFamily: fonts.boldFamily,
   },
   pageNumber: {
-    fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
+    fontSize: fonts.size.md,
+    color: colors.primary.sky,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.secondaryFamily,
   },
   placeholderContent: {
-    padding: 20,
+    padding: spacing.lg,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 300,
   },
   placeholderText: {
-    fontSize: 18,
-    color: '#333',
+    fontSize: fonts.size.lg,
+    color: colors.text.primary,
     textAlign: 'center',
-    marginBottom: 10,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.secondaryFamily,
   },
   placeholderSubtext: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: fonts.size.sm,
+    color: colors.text.muted,
     textAlign: 'center',
-    marginBottom: 40,
+    marginBottom: spacing.xl,
+    fontFamily: fonts.primaryFamily,
   },
   pageNavigation: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 20,
+    marginTop: spacing.lg,
     width: '100%',
   },
   pageNavigationInner: {
@@ -218,65 +279,84 @@ const styles = StyleSheet.create({
   pageButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 10,
-    backgroundColor: '#f0f8ff',
-    borderRadius: 8,
+    padding: spacing.sm,
+    backgroundColor: colors.background.accent,
+    borderRadius: radius.md,
     borderWidth: 1,
-    borderColor: '#5A9EBF',
+    borderColor: colors.primary.sky,
+    ...shadows.small,
+    minWidth: 110, // Give more space for touch and text
+    justifyContent: 'center',
   },
   pageButtonText: {
-    color: '#5A9EBF',
-    marginHorizontal: 5,
+    color: colors.primary.deep,
+    marginHorizontal: spacing.xs,
     fontWeight: '500',
+    fontFamily: fonts.secondaryFamily,
   },
   pageIndicator: {
-    padding: 10,
+    padding: spacing.sm,
   },
   pageIndicatorText: {
-    color: '#5A9EBF',
-    fontSize: 16,
+    color: colors.primary.deep,
+    fontSize: fonts.size.md,
     fontWeight: 'bold',
+    fontFamily: fonts.secondaryFamily,
   },
-  fallbackText: {
-    fontSize: 18,
-    color: '#666',
-    textAlign: 'center',
+  disabledButton: {
+    backgroundColor: colors.background.secondary,
+    borderColor: colors.border,
+    opacity: 0.5,
   },
-  pageText: {
-    fontSize: 16,
-    color: '#333',
-    marginTop: 10,
+  disabledText: {
+    color: colors.text.muted,
   },
   leftNavButtonContainer: {
     position: 'absolute',
-    left: 10,
-    top: '50%',
-    transform: [{ translateY: -25 }],
+    left: spacing.sm,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    zIndex: 5,
   },
   rightNavButtonContainer: {
     position: 'absolute',
-    right: 10,
-    top: '50%',
-    transform: [{ translateY: -25 }],
+    right: spacing.sm,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    zIndex: 5,
   },
   navButton: {
     width: 50,
     height: 50,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.8)',
-    borderRadius: 25,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.2,
-    shadowRadius: 2,
-    elevation: 2,
+    backgroundColor: colors.primary.white,
+    borderRadius: radius.round,
+    ...shadows.small,
   },
-  disabledButton: {
-    opacity: 0.5,
+  pageNumberIndicator: {
+    position: 'absolute',
+    bottom: spacing.sm,
+    left: 0,
+    right: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 5,
   },
-  disabledText: {
-    color: '#ccc',
+  pageNumberIndicatorInner: {
+    backgroundColor: 'rgba(42, 45, 116, 0.8)', // Semi-transparent primary deep blue
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.round,
+    ...shadows.small,
+  },
+  pageNumberIndicatorText: {
+    color: colors.primary.white,
+    fontSize: fonts.size.sm,
+    fontFamily: fonts.secondaryFamily,
+    fontWeight: 'bold',
   },
 });
 

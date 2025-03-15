@@ -1,7 +1,43 @@
 import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, SafeAreaView, StatusBar } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { Section } from '../models/Section';
+import { colors, fonts, spacing, radius, shadows } from '../constants/theme';
+
+// Format completion date in a nice, aesthetic way
+const formatCompletionDate = (date: Date | undefined): string => {
+  if (!date) return '';
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  
+  const completionDate = new Date(date);
+  
+  // Handle special cases
+  if (completionDate.getDate() === today.getDate() &&
+      completionDate.getMonth() === today.getMonth() &&
+      completionDate.getFullYear() === today.getFullYear()) {
+    return 'Today';
+  }
+  
+  if (completionDate.getDate() === yesterday.getDate() &&
+      completionDate.getMonth() === yesterday.getMonth() &&
+      completionDate.getFullYear() === yesterday.getFullYear()) {
+    return 'Yesterday';
+  }
+  
+  // For other dates, format as "Sat, Mar 15"
+  const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const dayName = days[completionDate.getDay()];
+  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+  const month = monthNames[completionDate.getMonth()];
+  const day = completionDate.getDate();
+  
+  return `${dayName}, ${month} ${day}`;
+};
 
 interface SectionNavigationProps {
   sections: Section[];
@@ -19,15 +55,38 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   onSectionPress,
   onToggleComplete,
   onClose,
-  khatmCount,
-  onReset
+  khatmCount
 }) => {
+  // Create references for animations
+  const animatedValues = React.useRef(sections.map(() => new Animated.Value(1))).current;
+  
+  // Function to animate button press
+  const animatePress = (index: number) => {
+    Animated.sequence([
+      Animated.timing(animatedValues[index], {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true
+      }),
+      Animated.timing(animatedValues[index], {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Barakaat Makiyyah</Text>
-        <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-          <Ionicons name="close" size={24} color="#4A6E8A" />
+        <Text style={styles.title}>Barakaat Makkiyyah</Text>
+        <TouchableOpacity 
+          style={styles.closeButton} 
+          onPress={onClose}
+          activeOpacity={0.7}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close" size={24} color={colors.primary.white} />
         </TouchableOpacity>
       </View>
       
@@ -38,43 +97,86 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
         </View>
       )}
       
-      <ScrollView style={styles.sectionsContainer}>
-        {sections.map((section) => (
-          <TouchableOpacity
+      <ScrollView 
+        style={styles.sectionsContainer}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContentContainer}
+      >
+        {sections.map((section, index) => (
+          <Animated.View 
             key={section.id}
             style={[
-              styles.sectionItem,
-              currentSectionId === section.id && styles.currentSection
+              { transform: [{ scale: animatedValues[index] }] }
             ]}
-            onPress={() => onSectionPress(section)}
           >
-            <View style={styles.sectionInfo}>
-              <Text style={[
-                styles.sectionTitle,
-                currentSectionId === section.id && styles.currentSectionText,
-                section.isCompleted && styles.completedSectionText
-              ]}>
-                {section.title}
-              </Text>
-              <Text style={styles.pageRange}>
-                Pages {section.startPage}-{section.endPage}
-              </Text>
-            </View>
-            
             <TouchableOpacity
               style={[
-                styles.checkButton,
-                section.isCompleted && styles.checkedButton
+                styles.sectionItem,
+                currentSectionId === section.id && styles.currentSection
               ]}
-              onPress={() => onToggleComplete(section.id)}
+              onPress={() => {
+                animatePress(index);
+                onSectionPress(section);
+              }}
+              activeOpacity={0.7}
+              accessibilityLabel={`${section.title}, pages ${section.startPage} to ${section.endPage}${section.isCompleted ? ', completed' : ''}`}
+              accessibilityRole="button"
+              accessibilityState={{ 
+                selected: currentSectionId === section.id,
+                checked: section.isCompleted
+              }}
             >
-              <Ionicons
-                name={section.isCompleted ? "checkmark-circle" : "ellipse-outline"}
-                size={24}
-                color={section.isCompleted ? "#4CAF50" : "#aaa"}
-              />
+              <View style={styles.sectionInfo}>
+                <Text style={[
+                  styles.sectionTitle,
+                  currentSectionId === section.id && styles.currentSectionText,
+                  section.isCompleted && styles.completedSectionText
+                ]}>
+                  {section.title}
+                </Text>
+                <Text style={[
+                  styles.pageRange,
+                  section.isCompleted && styles.completedPageRange
+                ]}>
+                  Pages {section.startPage}-{section.endPage}
+                </Text>
+                
+                {section.isCompleted && section.completionDate && (
+                  <View style={styles.completionDateContainer}>
+                    <Ionicons 
+                      name="calendar-outline" 
+                      size={12} 
+                      color={colors.success} 
+                      style={styles.calendarIcon} 
+                    />
+                    <Text style={styles.completionDateText}>
+                      Completed: {formatCompletionDate(section.completionDate)}
+                    </Text>
+                  </View>
+                )}
+              </View>
+              
+              <TouchableOpacity
+                style={[
+                  styles.checkButton,
+                  section.isCompleted && styles.checkedButton
+                ]}
+                onPress={() => {
+                  // Add haptic feedback here if needed
+                  onToggleComplete(section.id);
+                }}
+                accessibilityLabel={section.isCompleted ? 'Mark as incomplete' : 'Mark as complete'}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: section.isCompleted }}
+              >
+                <Ionicons
+                  name={section.isCompleted ? "checkmark-circle" : "ellipse-outline"}
+                  size={30}
+                  color={section.isCompleted ? colors.success : colors.text.muted}
+                />
+              </TouchableOpacity>
             </TouchableOpacity>
-          </TouchableOpacity>
+          </Animated.View>
         ))}
       </ScrollView>
       
@@ -83,107 +185,163 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
           Track your progress through the book
         </Text>
       </View>
-    </View>
+    </SafeAreaView>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F9F5EB',
+    backgroundColor: colors.primary.deep,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E2D3',
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    marginTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
   },
   title: {
-    fontSize: 20,
+    fontSize: fonts.size.xl,
     fontWeight: 'bold',
-    color: '#4A6E8A',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif-medium',
+    color: colors.primary.white,
+    fontFamily: fonts.boldFamily,
   },
   closeButton: {
-    padding: 4,
+    padding: spacing.xs,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    borderRadius: radius.round,
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
   },
   khatmCountContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#E8F4F8',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
+    marginBottom: spacing.md,
   },
   khatmCountLabel: {
-    fontSize: 16,
-    color: '#4A6E8A',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
+    fontSize: fonts.size.md,
+    color: colors.primary.white,
+    fontFamily: fonts.primaryFamily,
   },
   khatmCount: {
-    fontSize: 18,
+    fontSize: fonts.size.xl,
     fontWeight: 'bold',
-    color: '#0D8A4E',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Heavy' : 'sans-serif-medium',
+    color: colors.primary.sky,
+    fontFamily: fonts.boldFamily,
   },
   sectionsContainer: {
     flex: 1,
+  },
+  scrollContentContainer: {
+    paddingBottom: spacing.md,
+    paddingTop: spacing.sm,
   },
   sectionItem: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#E8E2D3',
+    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    marginHorizontal: spacing.md,
+    marginVertical: spacing.xs,
+    borderRadius: radius.lg,
+    backgroundColor: 'rgba(255, 255, 255, 0.03)',
   },
   currentSection: {
-    backgroundColor: 'rgba(90, 158, 191, 0.1)',
+    backgroundColor: colors.secondary.indigo,
+    marginVertical: spacing.sm,
+    borderRadius: radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: colors.primary.sky,
+    ...shadows.small,
+    transform: [{ translateX: -2 }],
   },
   sectionInfo: {
     flex: 1,
+    paddingRight: spacing.sm,
   },
   sectionTitle: {
-    fontSize: 16,
+    fontSize: fonts.size.lg,
     fontWeight: '600',
-    color: '#4A6E8A',
-    marginBottom: 4,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif-medium',
+    color: colors.primary.white,
+    marginBottom: spacing.xs,
+    fontFamily: fonts.secondaryFamily,
   },
   currentSectionText: {
-    color: '#5A9EBF',
+    color: colors.primary.sky,
     fontWeight: '700',
+    fontSize: fonts.size.lg,
   },
   completedSectionText: {
-    color: '#4CAF50',
+    color: colors.success,
   },
   pageRange: {
-    fontSize: 14,
-    color: '#8A7E6A',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
+    fontSize: fonts.size.sm,
+    color: colors.primary.sky,
+    opacity: 0.8,
+    fontFamily: fonts.primaryFamily,
+  },
+  completedPageRange: {
+    color: 'rgba(76, 175, 80, 0.8)',
   },
   checkButton: {
-    padding: 8,
+    padding: spacing.sm,
+    borderRadius: radius.round,
+    width: 48,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   checkedButton: {
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    borderRadius: 20,
+    backgroundColor: 'rgba(76, 175, 80, 0.15)',
+    borderRadius: radius.round,
   },
   footer: {
-    paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
     borderTopWidth: 1,
-    borderTopColor: '#E8E2D3',
+    borderTopColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
   },
   footerText: {
-    fontSize: 14,
-    color: '#8A7E6A',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
+    fontSize: fonts.size.sm,
+    color: 'rgba(114, 187, 225, 0.7)',
+    fontFamily: fonts.primaryFamily,
+  },
+  completionDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    alignSelf: 'flex-start',
+    borderLeftWidth: 2,
+    borderLeftColor: colors.success,
+  },
+  calendarIcon: {
+    marginRight: 4,
+    opacity: 0.9,
+  },
+  completionDateText: {
+    fontSize: fonts.size.xs,
+    color: colors.success,
+    fontFamily: fonts.primaryFamily,
+    fontWeight: '500',
   },
 });
 

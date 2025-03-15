@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { StyleSheet, View, Text, TouchableOpacity, Animated, Easing, Dimensions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { colors, fonts, spacing, radius, shadows } from '../constants/theme';
 
 interface ReadingDay {
   date: Date;
@@ -111,7 +112,7 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
           <Ionicons 
             name="checkmark" 
             size={14} 
-            color="#fff" 
+            color={colors.primary.white} 
             style={styles.checkmark} 
           />
         )}
@@ -144,7 +145,7 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
             )}
           </View>
           <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-            <Ionicons name="close" size={22} color="#6c757d" />
+            <Ionicons name="close" size={22} color={colors.text.muted} />
           </TouchableOpacity>
         </View>
         
@@ -193,163 +194,174 @@ const styles = StyleSheet.create({
   },
   notification: {
     width: Math.min(400, width - 40),
-    backgroundColor: '#FFF',
-    borderRadius: 16,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    backgroundColor: colors.primary.white,
+    borderRadius: radius.xl,
+    paddingVertical: spacing.lg,
+    paddingHorizontal: spacing.xl,
     marginTop: 80,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
+    ...shadows.large,
   },
   manzilNotification: {
     borderLeftWidth: 4,
-    borderLeftColor: '#5A9EBF',
+    borderLeftColor: colors.primary.deep,
   },
   khatmNotification: {
     borderLeftWidth: 4,
-    borderLeftColor: '#0D8A4E',
+    borderLeftColor: colors.secondary.indigo,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: spacing.md,
   },
   titleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   title: {
-    fontSize: 20,
+    fontSize: fonts.size.xl,
     fontWeight: 'bold',
-    color: '#343a40',
+    color: colors.primary.deep,
+    fontFamily: fonts.boldFamily,
   },
   badge: {
-    backgroundColor: '#0D8A4E',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-    marginLeft: 8,
+    backgroundColor: colors.secondary.indigo,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs / 2,
+    borderRadius: radius.md,
+    marginLeft: spacing.sm,
   },
   badgeText: {
-    color: '#FFF',
-    fontSize: 12,
+    color: colors.primary.white,
+    fontSize: fonts.size.xs,
     fontWeight: 'bold',
+    fontFamily: fonts.boldFamily,
   },
   closeButton: {
-    padding: 4,
+    padding: spacing.xs,
   },
   message: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginBottom: 20,
+    fontSize: fonts.size.md,
+    color: colors.text.muted,
+    marginBottom: spacing.lg,
     lineHeight: 22,
+    fontFamily: fonts.primaryFamily,
   },
   streakContainer: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    marginBottom: 20,
-    backgroundColor: '#F9F5EB',
-    borderRadius: 12,
-    padding: 12,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: colors.background.accent,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    ...shadows.small,
   },
   streakInfo: {
+    flex: 1,
     alignItems: 'center',
-    padding: 8,
   },
   streakInfoDivider: {
     width: 1,
-    backgroundColor: '#DDD',
-    marginHorizontal: 10,
+    height: '70%',
+    backgroundColor: colors.border,
+    marginHorizontal: spacing.sm,
   },
   streakCount: {
-    fontSize: 24,
+    fontSize: fonts.size.xxl,
     fontWeight: 'bold',
-    color: '#0D8A4E',
+    color: colors.primary.deep,
+    marginBottom: spacing.xs,
+    fontFamily: fonts.boldFamily,
   },
   streakLabel: {
-    fontSize: 12,
-    color: '#6c757d',
-    marginTop: 4,
+    fontSize: fonts.size.sm,
+    color: colors.text.muted,
+    fontFamily: fonts.primaryFamily,
   },
   weekText: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: '#6c757d',
-    marginBottom: 12,
+    fontSize: fonts.size.md,
+    fontWeight: '600',
+    color: colors.primary.deep,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.secondaryFamily,
   },
   daysContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 20,
+    alignItems: 'center',
+    marginBottom: spacing.lg,
   },
   dayCircle: {
     width: 40,
     height: 40,
-    borderRadius: 20,
+    borderRadius: radius.round,
     justifyContent: 'center',
     alignItems: 'center',
-    position: 'relative',
+    marginHorizontal: 2,
   },
   readDay: {
-    backgroundColor: '#0D8A4E',
+    backgroundColor: colors.primary.deep,
   },
   missedDay: {
-    backgroundColor: '#F5F5F5',
+    backgroundColor: colors.background.secondary,
     borderWidth: 1,
-    borderColor: '#DDD',
+    borderColor: colors.border,
   },
   todayCircle: {
     borderWidth: 2,
-    borderColor: '#0D8A4E',
+    borderColor: colors.primary.sky,
   },
   dayName: {
-    fontSize: 10,
-    fontWeight: 'bold',
+    fontSize: fonts.size.xs,
+    fontFamily: fonts.primaryFamily,
   },
   dayDate: {
-    fontSize: 12,
+    fontSize: fonts.size.sm,
     fontWeight: 'bold',
+    fontFamily: fonts.secondaryFamily,
   },
   readDayText: {
-    color: '#FFF',
+    color: colors.primary.white,
   },
   missedDayText: {
-    color: '#6c757d',
+    color: colors.text.muted,
   },
   checkmark: {
     position: 'absolute',
-    bottom: -5,
-    right: -5,
-    backgroundColor: '#0D8A4E',
-    borderRadius: 10,
+    bottom: -4,
+    right: -4,
+    backgroundColor: colors.success,
+    borderRadius: radius.round,
     width: 16,
     height: 16,
-    textAlign: 'center',
-    overflow: 'hidden',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.primary.white,
   },
   footer: {
     alignItems: 'center',
   },
   button: {
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 24,
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.lg,
+    borderRadius: radius.lg,
+    ...shadows.small,
   },
   manzilButton: {
-    backgroundColor: '#5A9EBF',
+    backgroundColor: colors.primary.deep,
   },
   khatmButton: {
-    backgroundColor: '#0D8A4E',
+    backgroundColor: colors.secondary.indigo,
   },
   buttonText: {
-    color: '#FFF',
-    fontSize: 16,
-    fontWeight: '600',
-  },
+    color: colors.primary.white,
+    fontSize: fonts.size.md,
+    fontWeight: 'bold',
+    fontFamily: fonts.boldFamily,
+  }
 });
 
 export default ReadingStreakNotification; 

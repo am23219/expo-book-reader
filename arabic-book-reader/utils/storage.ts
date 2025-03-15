@@ -12,7 +12,13 @@ export const loadSections = async (): Promise<Section[]> => {
   try {
     const jsonValue = await AsyncStorage.getItem(SECTIONS_STORAGE_KEY);
     if (jsonValue !== null) {
-      return JSON.parse(jsonValue);
+      const parsedSections = JSON.parse(jsonValue);
+      
+      // Convert stored date strings back to Date objects
+      return parsedSections.map((section: any) => ({
+        ...section,
+        completionDate: section.completionDate ? new Date(section.completionDate) : undefined
+      }));
     }
     return SECTIONS; // Return default sections if none are saved
   } catch (error) {

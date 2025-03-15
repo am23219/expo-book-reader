@@ -8,7 +8,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Barakaat Makiyyah',
+          title: 'Barakaat Makkiyyah',
           tabBarIcon: ({ color }) => <Ionicons name="book" size={24} color={color} />,
         }}
       />

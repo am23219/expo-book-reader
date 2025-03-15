@@ -18,6 +18,7 @@ import { Section } from '../models/Section';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 // import { Audio } from 'expo-av';
 import * as Haptics from 'expo-haptics';
+import { colors, fonts, spacing, radius, shadows } from '../constants/theme';
 
 // Enable LayoutAnimation for Android
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -293,25 +294,25 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
       animationType="fade"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
+      <View style={styles.modalContainer}>
         <View style={[
           styles.container,
           { paddingBottom: Math.max(insets.bottom, 10) }
         ]}>
           <View style={styles.header}>
             <TouchableOpacity 
-              style={styles.expandButton} 
+              style={styles.expandCollapseButton} 
               onPress={toggleExpanded}
               hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             >
               <Ionicons 
                 name={expanded ? "chevron-down" : "chevron-up"} 
                 size={20} 
-                color="#5A9EBF" 
+                color={colors.primary.white} 
               />
             </TouchableOpacity>
             
-            <Text style={styles.title}>
+            <Text style={styles.headerTitle}>
               {playFullBook ? 'Full Book Player' : `${currentSection.title}`}
             </Text>
             
@@ -319,38 +320,40 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
               style={styles.closeButton}
               onPress={onClose}
             >
-              <Ionicons name="close" size={22} color="#6c757d" />
+              <Ionicons name="close" size={22} color={colors.secondary.indigo} />
             </TouchableOpacity>
           </View>
           
           {expanded && (
             <>
-              <View style={styles.modeSelector}>
+              <View style={styles.modeContainer}>
                 <Text style={[
-                  styles.modeSelectorText, 
-                  !playFullBook && styles.modeSelectorTextActive
+                  styles.modeText, 
+                  !playFullBook && styles.modeTextActive
                 ]}>
                   Manzil
                 </Text>
                 <Switch
                   value={playFullBook}
                   onValueChange={handleModeChange}
-                  trackColor={{ false: '#d1d1d1', true: '#E8F5EE' }}
-                  thumbColor={playFullBook ? '#5A9EBF' : '#f4f3f4'}
-                  ios_backgroundColor="#d1d1d1"
+                  trackColor={{ false: colors.background.secondary, true: colors.primary.sky }}
+                  thumbColor={playFullBook ? colors.primary.sky : colors.background.secondary}
+                  ios_backgroundColor={colors.background.secondary}
                 />
                 <Text style={[
-                  styles.modeSelectorText,
-                  playFullBook && styles.modeSelectorTextActive
+                  styles.modeText,
+                  playFullBook && styles.modeTextActive
                 ]}>
                   Full Book
                 </Text>
               </View>
               
-              <View style={styles.nowPlayingContainer}>
-                <Ionicons name="musical-note" size={16} color="#5A9EBF" />
-                <Text style={styles.nowPlayingText} numberOfLines={1}>
-                  Now Playing: {getCurrentPlayingSection()}
+              <View style={styles.bookDetails}>
+                <Text style={styles.bookSectionLabel}>
+                  Now Playing:
+                </Text>
+                <Text style={styles.sectionTitle} numberOfLines={1}>
+                  {getCurrentPlayingSection()}
                 </Text>
               </View>
             </>
@@ -378,30 +381,30 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
               />
             </View>
             
-            <View style={styles.timeContainer}>
+            <View style={styles.timeInfo}>
               <Text style={styles.timeText}>{formatTime(position)}</Text>
               <Text style={styles.timeText}>{formatTime(duration)}</Text>
             </View>
           </View>
           
           <View style={[
-            styles.controls,
+            styles.controlsContainer,
             isSmallScreen && styles.controlsCompact
           ]}>
             <TouchableOpacity 
               onPress={handleRewind} 
-              style={styles.button} 
+              style={styles.controlButton} 
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="play-back" size={isSmallScreen ? 22 : 24} color="#5A9EBF" />
+              <Ionicons name="play-back" size={isSmallScreen ? 22 : 24} color={colors.primary.sky} />
             </TouchableOpacity>
             
             <Animated.View style={{ opacity: fadeAnim }}>
               <TouchableOpacity 
                 onPress={handlePlayPause} 
                 style={[
-                  styles.playButton,
+                  styles.playPauseButton,
                   isSmallScreen && styles.playButtonCompact,
                   isLoading && styles.playButtonDisabled
                 ]} 
@@ -412,12 +415,12 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
                 accessibilityState={{ busy: isLoading }}
               >
                 {isLoading ? (
-                  <ActivityIndicator color="#ffffff" size={isSmallScreen ? 28 : 32} />
+                  <ActivityIndicator color={colors.primary.white} size={isSmallScreen ? 28 : 32} />
                 ) : (
                   <Ionicons 
                     name={isPlaying ? "pause" : "play"} 
                     size={isSmallScreen ? 28 : 32} 
-                    color="#ffffff" 
+                    color={colors.primary.white} 
                   />
                 )}
               </TouchableOpacity>
@@ -425,11 +428,11 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
             
             <TouchableOpacity 
               onPress={handleForward} 
-              style={styles.button} 
+              style={styles.controlButton} 
               activeOpacity={0.7}
               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
             >
-              <Ionicons name="play-forward" size={isSmallScreen ? 22 : 24} color="#5A9EBF" />
+              <Ionicons name="play-forward" size={isSmallScreen ? 22 : 24} color={colors.primary.sky} />
             </TouchableOpacity>
           </View>
           
@@ -450,159 +453,170 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  modalContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(0,0,0,0.6)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
     width: '90%',
-    maxWidth: 420,
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 5,
-    borderWidth: 1,
-    borderColor: '#e9ecef',
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
-    maxHeight: '80%',
+    maxWidth: 500,
+    maxHeight: '85%',
+    backgroundColor: colors.primary.white,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    ...shadows.large,
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 24,
+    alignItems: 'center',
+    padding: spacing.md,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.primary.deep,
   },
-  expandButton: {
-    padding: 4,
-    marginRight: 8,
-    width: 24,
+  headerTitle: {
+    fontSize: fonts.size.lg,
+    fontWeight: 'bold',
+    color: colors.primary.white,
+    fontFamily: fonts.boldFamily,
   },
   closeButton: {
-    padding: 4,
-    width: 24,
+    padding: spacing.xs,
+    borderRadius: radius.round,
+    backgroundColor: colors.secondary.indigo,
+    width: 32,
+    height: 32,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  title: {
+  content: {
+    padding: spacing.md,
+    backgroundColor: colors.background.primary,
+  },
+  expandCollapseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: spacing.sm,
+    backgroundColor: colors.background.accent,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
+  expandCollapseText: {
     flex: 1,
-    fontSize: 22,
+    color: colors.primary.deep,
+    fontSize: fonts.size.md,
+    fontFamily: fonts.secondaryFamily,
+    marginLeft: spacing.sm,
+  },
+  sectionTitle: {
+    fontSize: fonts.size.lg,
     fontWeight: 'bold',
-    color: '#343a40',
-    textAlign: 'center',
-    fontFamily: Platform.OS === 'ios' ? 'Avenir-Medium' : 'sans-serif-medium',
-    letterSpacing: 0.3,
-  },
-  modeSelector: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    backgroundColor: '#f8f9fa',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    alignSelf: 'center',
-  },
-  modeSelectorText: {
-    fontSize: 16,
-    color: '#6c757d',
-    marginHorizontal: 10,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
-  },
-  modeSelectorTextActive: {
-    color: '#5A9EBF',
-    fontWeight: '600',
-  },
-  nowPlayingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(90, 158, 191, 0.08)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 16,
-    marginBottom: 20,
-    maxWidth: '100%',
-  },
-  nowPlayingText: {
-    fontSize: 16,
-    color: '#5A9EBF',
-    fontStyle: 'italic',
-    textAlign: 'center',
-    marginLeft: 8,
-    fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
-    flexShrink: 1,
+    color: colors.primary.deep,
+    marginBottom: spacing.sm,
+    fontFamily: fonts.boldFamily,
   },
   progressBarContainer: {
-    marginBottom: 20,
-    width: '100%',
-  },
-  progressBar: {
-    width: '100%',
     height: 8,
-    backgroundColor: '#f0f0f0',
-    borderRadius: 4,
-    marginBottom: 10,
+    backgroundColor: colors.background.secondary,
+    borderRadius: radius.round,
+    marginVertical: spacing.md,
     overflow: 'hidden',
   },
-  progressFill: {
+  progressBar: {
     height: '100%',
-    backgroundColor: '#5A9EBF',
-    borderRadius: 4,
+    backgroundColor: colors.primary.sky,
+    borderRadius: radius.round,
   },
-  controls: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  controlsCompact: {
-    marginVertical: 14,
-  },
-  button: {
-    padding: 16,
-    backgroundColor: '#f8f9fa',
-    borderRadius: 30,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  playButton: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#5A9EBF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginHorizontal: 28,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.25,
-    shadowRadius: 5,
-    elevation: 5,
-  },
-  playButtonCompact: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    marginHorizontal: 24,
-  },
-  timeContainer: {
+  timeInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    paddingHorizontal: 4,
+    marginBottom: spacing.md,
   },
   timeText: {
-    fontSize: 14,
-    color: '#6c757d',
-    fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace',
+    color: colors.text.muted,
+    fontSize: fonts.size.sm,
+    fontFamily: fonts.primaryFamily,
+  },
+  controlsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    marginTop: spacing.md,
+    marginBottom: spacing.md,
+  },
+  controlButton: {
+    padding: spacing.md,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary.deep,
+    ...shadows.small,
+  },
+  playPauseButton: {
+    padding: spacing.md,
+    borderRadius: radius.round,
+    backgroundColor: colors.primary.sky,
+    ...shadows.small,
+  },
+  speedContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  speedButton: {
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    margin: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.background.accent,
+  },
+  speedButtonActive: {
+    backgroundColor: colors.primary.sky,
+  },
+  speedText: {
+    color: colors.text.muted,
+    fontSize: fonts.size.sm,
+    fontFamily: fonts.primaryFamily,
+  },
+  speedTextActive: {
+    color: colors.primary.deep,
+    fontWeight: 'bold',
+  },
+  modeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    paddingTop: spacing.md,
+    marginTop: spacing.md,
+  },
+  modeText: {
+    marginHorizontal: spacing.md,
+    color: colors.text.primary,
+    fontSize: fonts.size.sm,
+    fontFamily: fonts.primaryFamily,
+  },
+  bookDetails: {
+    backgroundColor: colors.background.accent,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    marginBottom: spacing.md,
+  },
+  bookSectionLabel: {
+    fontSize: fonts.size.sm,
+    color: colors.text.muted,
+    marginBottom: spacing.xs,
+    fontFamily: fonts.primaryFamily,
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
   },
   note: {
     marginTop: 8,
@@ -615,13 +629,31 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   playButtonDisabled: {
-    backgroundColor: '#a0c0d0',
+    opacity: 0.6,
   },
   errorText: {
     color: '#ff3b30',
     textAlign: 'center',
     marginVertical: 10,
     fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
+  },
+  playButtonCompact: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginHorizontal: 24,
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.primary.sky,
+    borderRadius: radius.round,
+  },
+  controlsCompact: {
+    marginVertical: spacing.sm,
+  },
+  modeTextActive: {
+    color: colors.primary.sky,
+    fontWeight: 'bold',
   },
 });
 
