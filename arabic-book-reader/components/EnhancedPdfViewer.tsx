@@ -224,8 +224,10 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   
   // Reference to PDF container for preloading
   const preloadPdfRefs = useRef<{[key: number]: Pdf | null}>({});
-  // Track the main PDF document reference
+  // Track the main PDF document reference with a proper ref
   const pdfDocumentRef = useRef<any>(null);
+  const documentReadyRef = useRef<boolean>(false);
+  const pendingPageChangeRef = useRef<number | null>(null);
   
   // Get safe area insets for proper UI positioning
   const insets = useSafeAreaInsets();
@@ -248,13 +250,13 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
 
   // Synchronize displayed page with current page from props
   useEffect(() => {
-    if (!isAnimating) {
+    if (!isAnimating && documentReadyRef.current) {
       dispatch({ type: 'SET_CURRENT_PAGE', payload: currentPage });
     }
     
     // Trigger preloading whenever the current page changes, but only if not animating
-    // This prevents too many concurrent preload operations
-    if (!isAnimating && !isPreloading) {
+    // and document is ready
+    if (!isAnimating && !isPreloading && documentReadyRef.current) {
       preloadAdjacentPages(currentPage);
     }
   }, [currentPage, isAnimating, isPreloading, dispatch]);
@@ -268,20 +270,22 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
     
     const pagesToPreload: number[] = [];
     
-    // Limit to 1 page at a time to reduce pressure on the PDF renderer
-    // Priority: next page first, then previous page
-    
-    // Next page (higher priority for reading flow)
+    // For RTL reading, prioritize preloading in the correct direction
+    // Next page (higher priority for reading flow in Arabic/RTL)
     if (pageNum < numPages && !preloadedPages.has(pageNum + 1)) {
       pagesToPreload.push(pageNum + 1);
     }
     // Previous page
-    else if (pageNum > 1 && !preloadedPages.has(pageNum - 1)) {
+    if (pageNum > 1 && !preloadedPages.has(pageNum - 1)) {
       pagesToPreload.push(pageNum - 1);
     }
     // If both surrounding pages are loaded, try to load further ahead
-    else if (pageNum + 2 <= numPages && !preloadedPages.has(pageNum + 2)) {
+    if (pageNum + 2 <= numPages && !preloadedPages.has(pageNum + 2)) {
       pagesToPreload.push(pageNum + 2);
+    }
+    // Also preload one more page back if possible
+    if (pageNum > 2 && !preloadedPages.has(pageNum - 2)) {
+      pagesToPreload.push(pageNum - 2);
     }
     
     // Update the preloaded pages set with a delay to allow the current animation to complete
@@ -329,16 +333,28 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   
   // Extract preloaded pages rendering into a separate memoized function
   const renderPreloadedPages = useCallback(() => {
-    if (!pdfSource || isAnimating) return null;
+    if (!pdfSource || isAnimating || !documentReadyRef.current) return null;
     
-    // Only preload the next page to minimize rendering overhead
+    // Preload only 1-2 pages at a time to avoid overloading the PDF renderer
     const pagesToShow = Array.from(preloadedPages).filter(
-      page => page !== displayedPage && (page === displayedPage + 1 || page === displayedPage - 1)
+      page => page !== displayedPage && Math.abs(page - displayedPage) <= 1
     );
     
     if (pagesToShow.length === 0) return null;
     
-    // Only render one preloaded page at a time to avoid overloading the renderer
+    // Prioritize the next page in RTL reading direction
+    pagesToShow.sort((a, b) => {
+      // First prioritize the immediate next page
+      if (a === displayedPage + 1) return -1;
+      if (b === displayedPage + 1) return 1;
+      // Then the immediate previous page
+      if (a === displayedPage - 1) return -1;
+      if (b === displayedPage - 1) return 1;
+      // Then by proximity to current page
+      return Math.abs(a - displayedPage) - Math.abs(b - displayedPage);
+    });
+    
+    // Render only one preloaded page at a time to reduce memory pressure
     const pageToPreload = pagesToShow[0];
     
     return (
@@ -354,6 +370,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           style={styles.preloadPdf}
           enablePaging={false}
           spacing={0}
+          trustAllCerts={false}
           onLoadComplete={() => {
             console.log(`Preloaded page ${pageToPreload}`);
           }}
@@ -399,7 +416,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   // Use refactored animation utilities for resetPageAnimation
   const resetPageAnimation = useCallback(() => {
     Animated.parallel([
-      createTimingAnimation(pageFlipAnim, 0, 180),
+      createTimingAnimation(pageFlipAnim, 0, 180, Easing.bezier(0.25, 0.1, 0.25, 1)),
       createTimingAnimation(pageTurnOpacity, 0, 100)
     ]).start();
   }, [pageFlipAnim, pageTurnOpacity]);
@@ -450,14 +467,14 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           
           // Linear movement with very slight damping for more natural feel
           // Use a lower division factor to decrease resistance
-          const damping = 1.5; // Reduced from implicit tanh calculation
-          const resistance = Math.min(absX / damping, 50); // Cap at 50 for stability
+          const damping = 1.2; // Reduced for more responsive feel
+          const resistance = Math.min(absX / damping, 60); // Increased cap for more movement
           const newValue = gestureState.dx > 0 ? resistance : -resistance;
           
           pageFlipAnim.setValue(newValue);
           
           // Calculate opacity for the page turn shadow effect (softer shadow)
-          const opacityValue = Math.min(Math.abs(newValue) / 55, 0.25);
+          const opacityValue = Math.min(Math.abs(newValue) / 50, 0.3); // Increased max opacity
           pageTurnOpacity.setValue(opacityValue);
         }
       },
@@ -467,20 +484,20 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         if (isAnimating) return;
         
         // Even lower threshold for swipe detection to make page turns smoother
-        const THRESHOLD = 3; // Reduced for better responsiveness
+        const THRESHOLD = 2; // Reduced for better responsiveness
         const velocity = Math.abs(gestureState.vx);
         
         // More sensitive velocity detection for natural-feeling page turns
-        if (gestureState.dx > THRESHOLD || (gestureState.dx > 0 && velocity > 0.12)) {
-          // Swipe right - go to previous page
+        if (gestureState.dx > THRESHOLD || (gestureState.dx > 0 && velocity > 0.1)) {
+          // Swipe right - go to previous page (in RTL reading)
           if (currentPage > 1) {
             animatePageTurn('prev');
           } else {
             // Bounce back animation for first page
             resetPageAnimation();
           }
-        } else if (gestureState.dx < -THRESHOLD || (gestureState.dx < 0 && velocity > 0.15)) {
-          // Swipe left - go to next page
+        } else if (gestureState.dx < -THRESHOLD || (gestureState.dx < 0 && velocity > 0.1)) {
+          // Swipe left - go to next page (in RTL reading)
           if (currentPage < numPages) {
             animatePageTurn('next');
           } else {
@@ -500,7 +517,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
 
   // Fix the animatePageTurn function with proper structure and dependencies
   const animatePageTurn = useCallback((direction: 'next' | 'prev') => {
-    if (isAnimating) return;
+    if (isAnimating || !documentReadyRef.current) return;
     
     const canGoNext = direction === 'next' && currentPage < numPages;
     const canGoPrev = direction === 'prev' && currentPage > 1;
@@ -529,16 +546,16 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       // Next page (swipe left): negative animation value
       // Previous page (swipe right): positive animation value
       firstPhase: {
-        value: direction === 'next' ? -50 : 50,
-        duration: 120,
-        shadowOpacity: 0.25
+        value: direction === 'next' ? -60 : 60, // Increased for more pronounced effect
+        duration: 150, // Slightly longer for smoother animation
+        shadowOpacity: 0.3 // Increased for more visible shadow
       },
       secondPhase: {
-        value: direction === 'next' ? 35 : -35, // Starting position for incoming page
-        duration: 180,
-        shadowDuration: 90
+        value: direction === 'next' ? 40 : -40, // Increased for more pronounced effect
+        duration: 200, // Slightly longer for smoother animation
+        shadowDuration: 100
       },
-      delay: isPagePreloaded ? 10 : 20
+      delay: isPagePreloaded ? 5 : 10 // Reduced delay for faster transitions
     };
     
     // First phase: animate current page out
@@ -555,13 +572,26 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         animConfig.firstPhase.duration * 0.67
       ),
     ]).start(() => {
+      // Store the target page in case we need to retry
+      pendingPageChangeRef.current = targetPage;
+      
       // Update displayed page immediately for a smoother transition
       dispatch({ type: 'SET_CURRENT_PAGE', payload: targetPage });
       
       try {
-        // Force the PDF component to update to the new page
-        if (pdfRef.current) {
+        // Force the PDF component to update to the new page safely
+        if (pdfRef.current && documentReadyRef.current) {
+          // This is a safe operation if the document is ready
           pdfRef.current.setPage(targetPage);
+        } else {
+          console.log('PDF ref not available or document not ready, skipping setPage');
+          // Complete the animation anyway but more slowly
+          setTimeout(() => {
+            onPageChange(targetPage);
+            dispatch({ type: 'SET_ANIMATING', payload: false });
+            pendingPageChangeRef.current = null;
+          }, 300);
+          return;
         }
         
         // Reset animation position for incoming page
@@ -574,7 +604,8 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
             createTimingAnimation(
               pageFlipAnim, 
               0, 
-              animConfig.secondPhase.duration
+              animConfig.secondPhase.duration,
+              Easing.bezier(0.25, 0.1, 0.25, 1) // Improved easing for more natural feel
             ),
             createTimingAnimation(
               pageTurnOpacity, 
@@ -585,13 +616,14 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
             // Update the actual page state and end animation sequence
             onPageChange(targetPage);
             dispatch({ type: 'SET_ANIMATING', payload: false });
+            pendingPageChangeRef.current = null;
             
             // Wait to ensure the current animation is fully complete before preloading
             setTimeout(() => {
-              if (!isPreloading) {
+              if (!isPreloading && documentReadyRef.current) {
                 preloadAdjacentPages(targetPage);
               }
-            }, 100);
+            }, 100); // Increased delay to ensure stability
           });
         }, animConfig.delay);
       } catch (error) {
@@ -599,6 +631,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         // Recover from error by ending animation state
         dispatch({ type: 'SET_ANIMATING', payload: false });
         onPageChange(targetPage);
+        pendingPageChangeRef.current = null;
       }
     });
   }, [
@@ -618,6 +651,9 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   // Initialize PDF source with platform-specific handling - memoize with useCallback
   const initializePdfSource = useCallback(async () => {
     try {
+      // Reset document ready state
+      documentReadyRef.current = false;
+      
       dispatch({ type: 'SET_LOADING', payload: true });
       
       // Clear any existing preloaded pages and references when loading a new document
@@ -634,8 +670,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           
           console.log(`Setting PDF source: ${uri}`);
           dispatch({ type: 'SET_PDF_SOURCE', payload: { uri } });
-          dispatch({ type: 'SET_LOADING', payload: false });
-          return;
+          return; // Don't set loading to false yet - wait for onLoadComplete
         }
       }
 
@@ -651,7 +686,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       } else {
         dispatch({ type: 'SET_PDF_SOURCE', payload: PDF_SOURCE });
       }
-      dispatch({ type: 'SET_LOADING', payload: false });
+      // Don't set loading to false yet - wait for onLoadComplete
     } catch (error) {
       console.error('Error initializing PDF source:', error);
       dispatch({ type: 'SET_ERROR', payload: 'Unable to load the book. Please restart the app.' });
@@ -660,8 +695,8 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   }, [currentPage, dispatch, onError]);
   
   // Handle PDF load completion - memoize with useCallback
-  const handleLoadComplete = useCallback((numberOfPages: number) => {
-    console.log(`PDF loaded with ${numberOfPages} pages`);
+  const handleLoadComplete = useCallback((numberOfPages: number, filePath?: string) => {
+    console.log(`PDF loaded with ${numberOfPages} pages from ${filePath || 'unknown source'}`);
     
     if (numberOfPages > 0) {
       dispatch({ type: 'SET_PAGE_COUNT', payload: numberOfPages });
@@ -670,10 +705,34 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       if (currentPage > numberOfPages) {
         onPageChange(1);
       }
+      
+      // Mark document as ready for use
+      documentReadyRef.current = true;
+      
+      // Process any pending page change that might have been requested during loading
+      if (pendingPageChangeRef.current !== null) {
+        const targetPage = pendingPageChangeRef.current;
+        console.log(`Processing pending page change to ${targetPage}`);
+        if (pdfRef.current) {
+          try {
+            pdfRef.current.setPage(targetPage);
+          } catch (e) {
+            console.error('Error applying pending page change:', e);
+          }
+        }
+        pendingPageChangeRef.current = null;
+      }
+      
+      // Now we can preload some adjacent pages
+      setTimeout(() => {
+        if (!isPreloading) {
+          preloadAdjacentPages(currentPage);
+        }
+      }, 300);
     }
     
     dispatch({ type: 'SET_LOADING', payload: false });
-  }, [currentPage, dispatch, onPageChange]);
+  }, [currentPage, dispatch, onPageChange, preloadAdjacentPages, isPreloading]);
   
   // Render PDF view for the current page
   const renderPdfView = () => {
@@ -690,12 +749,14 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           minScale={0.5}
           maxScale={2.0}
           onLoadComplete={(numberOfPages, filePath, { width, height }, tableContents) => {
-            handleLoadComplete(numberOfPages);
+            handleLoadComplete(numberOfPages, filePath);
+            
             // Store a reference to the PDF document to prevent it being garbage collected
             if (pdfRef.current) {
               const extendedPdf = pdfRef.current as unknown as ExtendedPdf;
               if (extendedPdf._document) {
                 pdfDocumentRef.current = extendedPdf._document;
+                console.log('PDF document reference stored successfully');
               }
             }
           }}
@@ -717,18 +778,16 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
               return;
             }
             
-            // Calculate the actual page number - the PDF component starts from 1
-            // but may have a different ordering based on RTL settings
-            let newPage;
-            if (Platform.OS === 'ios') {
-              // iOS uses 0-indexed pages and requires different calculation
-              newPage = numPages - page;
-            } else {
-              // Android behavior
-              newPage = numPages - page + 1;
+            if (!documentReadyRef.current) {
+              console.log(`IGNORED: PDF component reported page change to ${page} (document not ready)`);
+              return;
             }
             
-            // Ensure page is within valid range
+            // For RTL reading in Arabic books, we need to ensure the page numbering is correct
+            // The PDF component may have different behavior on iOS vs Android
+            let newPage = page;
+            
+            // Ensure page is within valid range and matches the expected RTL behavior
             newPage = Math.max(1, Math.min(newPage, numPages));
             
             if (newPage !== displayedPage) {
@@ -738,10 +797,10 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
               
               // Delay preloading to avoid rendering issues
               setTimeout(() => {
-                if (!isPreloading) {
+                if (!isPreloading && documentReadyRef.current) {
                   preloadAdjacentPages(newPage);
                 }
-              }, 100);
+              }, 100); // Increased delay for stability
             } else {
               console.log(`IGNORED: PDF component reported duplicate page change to ${newPage}`);
             }
@@ -771,7 +830,14 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
                          'Failed to load the book. Please restart the app.';
     
     console.error('PDF loading error:', errorMessage);
+    
+    // Reset document ready state
+    documentReadyRef.current = false;
+    
+    // Set error state
     dispatch({ type: 'SET_ERROR', payload: errorMessage });
+    
+    // Notify parent component
     onError();
   }, [dispatch, onError]);
   
@@ -780,23 +846,83 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
     return () => {
       // Clean up all PDF resources when component unmounts
       console.log('Cleaning up PDF resources');
-      preloadPdfRefs.current = {};
-      pdfDocumentRef.current = null;
       
-      // Force garbage collection by clearing references
-      if (pdfRef.current) {
-        // @ts-ignore - Access internal methods for cleanup
-        if (typeof pdfRef.current.unloadDocument === 'function') {
-          try {
-            // @ts-ignore
-            pdfRef.current.unloadDocument();
-          } catch (e) {
-            console.error('Error unloading PDF document:', e);
+      // Make sure we don't try to access the document after it's being cleaned up
+      documentReadyRef.current = false;
+      
+      // Clear page references first
+      preloadPdfRefs.current = {};
+      
+      // Give a moment for any ongoing operations to complete
+      setTimeout(() => {
+        // Then clear the document
+        pdfDocumentRef.current = null;
+        
+        // Force garbage collection by clearing references
+        if (pdfRef.current) {
+          // @ts-ignore - Access internal methods for cleanup
+          if (typeof pdfRef.current.unloadDocument === 'function') {
+            try {
+              // @ts-ignore
+              pdfRef.current.unloadDocument();
+            } catch (e) {
+              console.error('Error unloading PDF document:', e);
+            }
           }
         }
-      }
+      }, 100);
     };
   }, []);
+  
+  // Render the page turn shadow effect with enhanced visual appearance
+  const renderPageTurnShadow = () => {
+    return (
+      <Animated.View 
+        style={[
+          styles.pageTurnShadow,
+          {
+            opacity: pageTurnOpacity,
+            transform: [
+              {
+                translateX: pageFlipAnim.interpolate({
+                  inputRange: [-60, 0, 60],
+                  outputRange: [-20, 0, 20],
+                  extrapolate: 'clamp'
+                })
+              }
+            ],
+            // Dynamic border radius based on animation direction
+            borderTopLeftRadius: pageFlipAnim.interpolate({
+              inputRange: [-60, 0, 60],
+              outputRange: [15, 0, 0],
+              extrapolate: 'clamp'
+            }),
+            borderBottomLeftRadius: pageFlipAnim.interpolate({
+              inputRange: [-60, 0, 60],
+              outputRange: [15, 0, 0],
+              extrapolate: 'clamp'
+            }),
+            borderTopRightRadius: pageFlipAnim.interpolate({
+              inputRange: [-60, 0, 60], 
+              outputRange: [0, 0, 15],
+              extrapolate: 'clamp'
+            }),
+            borderBottomRightRadius: pageFlipAnim.interpolate({
+              inputRange: [-60, 0, 60],
+              outputRange: [0, 0, 15],
+              extrapolate: 'clamp'
+            }),
+            // Dynamic shadow based on animation direction
+            shadowOpacity: pageTurnOpacity.interpolate({
+              inputRange: [0, 0.3],
+              outputRange: [0, 0.3],
+              extrapolate: 'clamp'
+            }),
+          }
+        ]}
+      />
+    );
+  };
   
   // Render main component with better loading/error states
   if (loadError) {
@@ -820,9 +946,14 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           />
         </View>
         
-        <Text style={styles.pageIndicator}>
-          {currentPage}/{numPages}
-        </Text>
+        <View style={styles.pageIndicatorContainer}>
+          <Text style={styles.pageIndicator}>
+            {currentPage}/{numPages}
+          </Text>
+          <Text style={styles.sectionIndicator}>
+            {currentSection.manzilNumber ? `منزل ${currentSection.manzilNumber}` : ''}
+          </Text>
+        </View>
       </Animated.View>
       
       {/* Main PDF container */}
@@ -847,44 +978,8 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
             >
               {renderPdfView()}
               
-              {/* Page turn shadow effect - fixed to use transform instead of position properties */}
-              <Animated.View 
-                style={[
-                  styles.pageTurnShadow,
-                  {
-                    opacity: pageTurnOpacity,
-                    transform: [
-                      {
-                        translateX: pageFlipAnim.interpolate({
-                          inputRange: [-40, 0, 40],
-                          outputRange: [-15, 0, 15],  // Reduced for subtler effect
-                          extrapolate: 'clamp'  // Prevent overshooting
-                        })
-                      }
-                    ],
-                    borderTopLeftRadius: pageFlipAnim.interpolate({
-                      inputRange: [-40, 0, 40],
-                      outputRange: [10, 0, 0],  // Increased for smoother curve
-                      extrapolate: 'clamp'  // Prevent overshooting
-                    }),
-                    borderBottomLeftRadius: pageFlipAnim.interpolate({
-                      inputRange: [-40, 0, 40],
-                      outputRange: [10, 0, 0],  // Increased for smoother curve
-                      extrapolate: 'clamp'  // Prevent overshooting
-                    }),
-                    borderTopRightRadius: pageFlipAnim.interpolate({
-                      inputRange: [-40, 0, 40], 
-                      outputRange: [0, 0, 10],  // Increased for smoother curve
-                      extrapolate: 'clamp'  // Prevent overshooting
-                    }),
-                    borderBottomRightRadius: pageFlipAnim.interpolate({
-                      inputRange: [-40, 0, 40],
-                      outputRange: [0, 0, 10],  // Increased for smoother curve
-                      extrapolate: 'clamp'  // Prevent overshooting
-                    }),
-                  }
-                ]}
-              />
+              {/* Page turn shadow effect with enhanced visual appearance */}
+              {renderPageTurnShadow()}
             </Animated.View>
           )}
         </View>
@@ -913,6 +1008,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
             activeOpacity={0.7}
           >
             <Feather name="chevron-right" size={28} color={currentPage <= 1 ? "#ccc" : "#0099cc"} />
+            <Text style={styles.navButtonLabel}>السابق</Text>
           </TouchableOpacity>
           
           <TouchableOpacity 
@@ -931,6 +1027,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
             activeOpacity={0.7}
           >
             <Feather name="chevron-left" size={28} color={currentPage >= numPages ? "#ccc" : "#0099cc"} />
+            <Text style={styles.navButtonLabel}>التالي</Text>
           </TouchableOpacity>
         </Animated.View>
         
@@ -1050,6 +1147,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     maxWidth: '35%',
     marginHorizontal: 8,
+    textAlign: 'right', // Right-aligned for Arabic text
   },
   progressBar: {
     flex: 1,
@@ -1064,12 +1162,21 @@ const styles = StyleSheet.create({
     backgroundColor: '#0099cc',
     borderRadius: 4,
   },
+  pageIndicatorContainer: {
+    alignItems: 'center',
+    minWidth: 70,
+  },
   pageIndicator: {
     fontSize: 14,
     color: '#555',
     fontWeight: '500',
-    marginHorizontal: 8,
-    minWidth: 50,
+    textAlign: 'center',
+  },
+  sectionIndicator: {
+    fontSize: 12,
+    color: '#0099cc',
+    fontWeight: '500',
+    marginTop: 2,
     textAlign: 'center',
   },
   pdfContainer: {
@@ -1095,16 +1202,19 @@ const styles = StyleSheet.create({
   pageTurnShadow: {
     position: 'absolute',
     top: 0,
-    width: 20,
+    width: 25,
     height: '100%',
-    backgroundColor: 'rgba(0,0,0,0.05)',
+    backgroundColor: 'rgba(0,0,0,0.08)',
     zIndex: 20,
     transform: [{ translateX: 0 }],
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.15,
-    shadowRadius: 5,
-    elevation: 3,
+    shadowOffset: { width: -2, height: 0 }, // Directional shadow for more realism
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    // Add gradient effect for more realistic page curl
+    borderWidth: 0.5,
+    borderColor: 'rgba(0,0,0,0.05)',
   },
   navigationButtons: {
     position: 'absolute',
@@ -1118,17 +1228,17 @@ const styles = StyleSheet.create({
     zIndex: 10,
   },
   navButton: {
-    width: 50,
-    height: 50,
+    width: 60, // Increased for better touch target
+    height: 60, // Increased for better touch target
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 25,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)', // Increased opacity for better visibility
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 3,
+    shadowOpacity: 0.2, // Increased for more visible shadow
+    shadowRadius: 4, // Increased for softer shadow
+    elevation: 4, // Increased for better Android shadow
   },
   prevPageButton: {
     marginLeft: 8,
@@ -1204,11 +1314,18 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: 'transparent',
     zIndex: -1,
+    opacity: 0, // Hide preloaded pages
   },
   preloadPdf: {
     flex: 1,
     width: '100%',
     height: '100%',
+  },
+  navButtonLabel: {
+    fontSize: 10,
+    color: '#0099cc',
+    marginTop: 2,
+    fontWeight: '500',
   },
 });
 
