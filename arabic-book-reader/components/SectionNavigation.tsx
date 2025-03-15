@@ -10,6 +10,7 @@ interface SectionNavigationProps {
   onToggleComplete: (sectionId: number) => void;
   onClose: () => void;
   khatmCount: number;
+  onReset?: () => Promise<void>;
 }
 
 const SectionNavigation: React.FC<SectionNavigationProps> = ({
@@ -18,7 +19,8 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   onSectionPress,
   onToggleComplete,
   onClose,
-  khatmCount
+  khatmCount,
+  onReset
 }) => {
   return (
     <View style={styles.container}>
@@ -172,7 +174,8 @@ const styles = StyleSheet.create({
     borderRadius: 20,
   },
   footer: {
-    padding: 16,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
     borderTopWidth: 1,
     borderTopColor: '#E8E2D3',
     alignItems: 'center',
@@ -180,7 +183,6 @@ const styles = StyleSheet.create({
   footerText: {
     fontSize: 14,
     color: '#8A7E6A',
-    textAlign: 'center',
     fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
   },
 });

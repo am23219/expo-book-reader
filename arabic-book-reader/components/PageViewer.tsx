@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity, Image, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Section } from '../models/Section';
+import { Section, SECTIONS } from '../models/Section';
 
 export interface PageViewerProps {
   currentPage: number;
@@ -14,6 +14,9 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
   const [error, setError] = useState<string | null>(null);
   const { width, height } = Dimensions.get('window');
   
+  // Get the maximum page from the last section's endPage in the SECTIONS model
+  const MAX_PAGE = SECTIONS[SECTIONS.length - 1].endPage;
+  
   const handlePrevPage = () => {
     if (currentPage > 1) {
       onPageChange(currentPage - 1);
@@ -21,8 +24,8 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
   };
 
   const handleNextPage = () => {
-    // Assuming max page is 150 for this example
-    if (currentPage < 150) {
+    // Use the maximum page determined from the model
+    if (currentPage < MAX_PAGE) {
       onPageChange(currentPage + 1);
     }
   };
@@ -65,16 +68,18 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
                     </TouchableOpacity>
                     
                     <View style={styles.pageIndicator}>
-                      <Text style={styles.pageIndicatorText}>{currentPage} / 150</Text>
+                      <Text style={styles.pageIndicatorText}>
+                        {currentPage} / {MAX_PAGE}
+                      </Text>
                     </View>
                     
                     <TouchableOpacity
-                      style={[styles.pageButton, currentPage >= 150 && styles.disabledButton]}
+                      style={[styles.pageButton, currentPage >= MAX_PAGE && styles.disabledButton]}
                       onPress={handleNextPage}
-                      disabled={currentPage >= 150}
+                      disabled={currentPage >= MAX_PAGE}
                     >
-                      <Text style={[styles.pageButtonText, currentPage >= 150 && styles.disabledText]}>Next</Text>
-                      <Ionicons name="arrow-forward" size={24} color={currentPage >= 150 ? "#ccc" : "#5A9EBF"} />
+                      <Text style={[styles.pageButtonText, currentPage >= MAX_PAGE && styles.disabledText]}>Next</Text>
+                      <Ionicons name="arrow-forward" size={24} color={currentPage >= MAX_PAGE ? "#ccc" : "#5A9EBF"} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -102,14 +107,14 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
       {/* Right navigation button */}
       <View style={styles.rightNavButtonContainer}>
         <TouchableOpacity 
-          style={[styles.navButton, currentPage >= 150 && styles.disabledButton]} 
+          style={[styles.navButton, currentPage >= MAX_PAGE && styles.disabledButton]} 
           onPress={handleNextPage}
-          disabled={currentPage >= 150}
+          disabled={currentPage >= MAX_PAGE}
         >
           <Ionicons 
             name="chevron-forward" 
             size={28} 
-            color={currentPage >= 150 ? "#ccc" : "#5A9EBF"} 
+            color={currentPage >= MAX_PAGE ? "#ccc" : "#5A9EBF"} 
           />
         </TouchableOpacity>
       </View>

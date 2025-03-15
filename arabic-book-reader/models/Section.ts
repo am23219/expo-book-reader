@@ -14,7 +14,7 @@ export const SECTIONS: Section[] = [
     id: 1,
     title: 'Manzil 1',
     startPage: 1,
-    endPage: 20,
+    endPage: 22,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil1.mp3',
     manzilNumber: 1
@@ -22,8 +22,8 @@ export const SECTIONS: Section[] = [
   {
     id: 2,
     title: 'Manzil 2',
-    startPage: 21,
-    endPage: 40,
+    startPage: 22,
+    endPage: 42,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil2.mp3',
     manzilNumber: 2
@@ -31,8 +31,8 @@ export const SECTIONS: Section[] = [
   {
     id: 3,
     title: 'Manzil 3',
-    startPage: 41,
-    endPage: 60,
+    startPage: 42,
+    endPage: 64,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil3.mp3',
     manzilNumber: 3
@@ -40,8 +40,8 @@ export const SECTIONS: Section[] = [
   {
     id: 4,
     title: 'Manzil 4',
-    startPage: 61,
-    endPage: 80,
+    startPage: 64,
+    endPage: 89,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil4.mp3',
     manzilNumber: 4
@@ -49,8 +49,8 @@ export const SECTIONS: Section[] = [
   {
     id: 5,
     title: 'Manzil 5',
-    startPage: 81,
-    endPage: 100,
+    startPage: 89,
+    endPage: 109,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil5.mp3',
     manzilNumber: 5
@@ -58,8 +58,8 @@ export const SECTIONS: Section[] = [
   {
     id: 6,
     title: 'Manzil 6',
-    startPage: 101,
-    endPage: 120,
+    startPage: 109,
+    endPage: 128,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil6.mp3',
     manzilNumber: 6
@@ -67,7 +67,7 @@ export const SECTIONS: Section[] = [
   {
     id: 7,
     title: 'Manzil 7',
-    startPage: 121,
+    startPage: 128,
     endPage: 150,
     isCompleted: false,
     audioUrl: 'https://example.com/audio/manzil7.mp3',

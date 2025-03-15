@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform, Image, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import PageViewer from '../components/PageViewer';
 import SectionNavigation from '../components/SectionNavigation';
 import { Section, SECTIONS } from '../models/Section';
-import { loadSections, saveSections, loadCurrentPage, saveCurrentPage } from '../utils/storage';
+import { loadSections, saveSections, loadCurrentPage, saveCurrentPage, clearAllData } from '../utils/storage';
 import EnhancedPdfViewer from '../components/EnhancedPdfViewer';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Haptics from 'expo-haptics';
@@ -15,7 +15,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import ShakeView from '../components/ShakeView';
 import { LinearGradient } from 'expo-linear-gradient';
 import ReadingStreakNotification from '../components/ReadingStreakNotification';
-import Confetti from '../components/Confetti';
 
 const startOfDay = (date: Date): Date => {
   const result = new Date(date);
@@ -62,8 +61,6 @@ export default function BookPage() {
   const [useFallbackViewer, setUseFallbackViewer] = useState(false);
   const [khatmCount, setKhatmCount] = useState(0);
   const [showKhatmModal, setShowKhatmModal] = useState(false);
-  const [showManzilConfetti, setShowManzilConfetti] = useState(false);
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [shakeKhatmModal, setShakeKhatmModal] = useState(false);
   const [manzilCompletionColors, setManzilCompletionColors] = useState<string[]>([
     '#4CAF50', '#8BC34A', '#CDDC39', '#FFEB3B', '#FFC107'
@@ -81,8 +78,6 @@ export default function BookPage() {
     message: '',
     isKhatm: false
   });
-  const [loadingAttempts, setLoadingAttempts] = useState(0);
-  const [appLoading, setAppLoading] = useState(true);
   
   const sectionDrawerAnim = useRef(new Animated.Value(-280)).current;
   const { height, width } = Dimensions.get('window');
@@ -94,6 +89,7 @@ export default function BookPage() {
   // Responsive sizing calculations
   const isLargeScreen = useMemo(() => width > 380, [width]);
   const isExtraLargeScreen = useMemo(() => width > 428, [width]);
+  const patternOpacity = useMemo(() => isLargeScreen ? 0.035 : 0, [isLargeScreen]);
   const menuScale = useMemo(() => isLargeScreen ? (isExtraLargeScreen ? 1.15 : 1.1) : 1, [isLargeScreen, isExtraLargeScreen]);
   const headerPadding = useMemo(() => isLargeScreen ? (isExtraLargeScreen ? 14 : 12) : 8, [isLargeScreen, isExtraLargeScreen]);
   
@@ -127,7 +123,6 @@ export default function BookPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        setAppLoading(true);
         const savedSections = await loadSections();
         const savedPage = await loadCurrentPage();
         const savedKhatmCount = await AsyncStorage.getItem('khatm_count');
@@ -142,13 +137,11 @@ export default function BookPage() {
         setKhatmCount(savedKhatmCount ? parseInt(savedKhatmCount) : 0);
         
         console.log(`Initial load - Page: ${savedPage}, Section: ${section.title} (${section.startPage}-${section.endPage})`);
-        setAppLoading(false);
       } catch (error) {
         console.error('Error loading data:', error);
         // Fallback to defaults if there's an error
         setCurrentPage(1);
         setCurrentSection(SECTIONS[0]);
-        setAppLoading(false);
       }
     };
     
@@ -235,14 +228,7 @@ export default function BookPage() {
     toggleSectionDrawer(); // Close drawer after selection
   };
   
-  // Clean up sound when component unmounts
-  useEffect(() => {
-    return sound
-      ? () => {
-          sound.unloadAsync();
-        }
-      : undefined;
-  }, [sound]);
+
   
   // Add this function to manage the reading history and streaks
   const updateReadingStreak = async () => {
@@ -582,21 +568,29 @@ export default function BookPage() {
     }
   }, [currentPage, sections]);
   
-  const handlePdfError = () => {
-    console.log(`PDF loading error occurred - attempts: ${loadingAttempts + 1}`);
-    
-    // If we've tried multiple times with the enhanced viewer, switch to fallback
-    if (loadingAttempts >= 2) {
-      console.log('Multiple PDF loading attempts failed, switching to fallback viewer');
-      setUseFallbackViewer(true);
-    } else {
-      setLoadingAttempts(prev => prev + 1);
+  // Handle data reset and app refresh
+  const handleReset = async () => {
+    try {
+      // Clear all stored data
+      await clearAllData();
+      
+      // Reset state to defaults
+      setSections(SECTIONS);
+      setCurrentPage(1);
+      setCurrentSection(SECTIONS[0]);
+      setKhatmCount(0);
+      
+      // Close the section drawer
+      toggleSectionDrawer();
+      
+      console.log('All data has been reset to defaults');
+      
+      // Show confirmation
+      alert('Data has been reset to defaults');
+    } catch (error) {
+      console.error('Error resetting data:', error);
+      alert('An error occurred while resetting data');
     }
-  };
-  
-  const resetPdfViewer = () => {
-    setLoadingAttempts(0);
-    setUseFallbackViewer(false);
   };
   
   return (
@@ -606,7 +600,7 @@ export default function BookPage() {
       {/* Decorative Background for larger screens */}
       {isLargeScreen && (
         <View style={styles.decorativeBackground}>
-          <View style={styles.patternContainer}>
+          <View style={[styles.patternContainer, { opacity: patternOpacity }]}>
             {/* Top pattern */}
             <View style={[styles.geometricPattern, styles.topPattern]} />
             {/* Bottom pattern */}
@@ -677,58 +671,36 @@ export default function BookPage() {
             />
           </View>
         </View>
-        
-        <TouchableOpacity 
-          style={[styles.audioButton, { transform: [{ scale: menuScale }] }]} 
-          onPress={toggleAudioModal}
-        >
-          <Ionicons name="musical-notes" size={iconSize - 2} color="#5A9EBF" />
-        </TouchableOpacity>
       </View>
       
       {/* PDF Viewer with improved container for larger screens */}
       <View style={[
         styles.content, 
         isLargeScreen && { 
+          paddingHorizontal: isExtraLargeScreen ? 35 : 25,
+          paddingVertical: isExtraLargeScreen ? 10 : 8,
           flex: 1, // Ensure it takes remaining space
         }
       ]}>
-        {appLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#5A9EBF" />
-            <Text style={styles.loadingText}>تحميل الكتاب...</Text>
-          </View>
-        ) : (
-          <>
-            <View style={[
-              styles.pdfContainer, 
-              isLargeScreen && styles.pdfContainerLarge
-            ]}>
-              {!useFallbackViewer ? (
-                <EnhancedPdfViewer 
-                  currentPage={currentPage} 
-                  onPageChange={handlePageChange}
-                  onError={handlePdfError}
-                  currentSection={currentSection}
-                />
-              ) : (
-                <View style={styles.fallbackContainer}>
-                  <PageViewer 
-                    currentPage={currentPage}
-                    onPageChange={handlePageChange}
-                    currentSection={currentSection}
-                  />
-                  <TouchableOpacity 
-                    style={styles.resetButton} 
-                    onPress={resetPdfViewer}
-                  >
-                    <Text style={styles.resetButtonText}>Try Enhanced Viewer Again</Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-          </>
-        )}
+        <View style={[
+          styles.pdfContainer, 
+          isLargeScreen && styles.pdfContainerLarge
+        ]}>
+          {useFallbackViewer ? (
+            <PageViewer 
+              currentPage={currentPage} 
+              onPageChange={handlePageChange}
+              currentSection={currentSection}
+            />
+          ) : (
+            <EnhancedPdfViewer 
+              currentPage={currentPage} 
+              onPageChange={handlePageChange}
+              onError={() => setUseFallbackViewer(true)}
+              currentSection={currentSection}
+            />
+          )}
+        </View>
       </View>
       
       {/* Section Navigation Drawer */}
@@ -748,6 +720,7 @@ export default function BookPage() {
           onToggleComplete={handleToggleComplete}
           onClose={toggleSectionDrawer}
           khatmCount={khatmCount}
+          onReset={handleReset}
         />
       </Animated.View>
       
@@ -795,15 +768,7 @@ export default function BookPage() {
         </View>
       )}
       
-      {/* Enhanced Confetti Effects */}
-      {showManzilConfetti && 
-        <Confetti 
-          count={50} 
-          duration={3000} 
-          colors={manzilCompletionColors}
-          size={{ min: 5, max: 12 }}
-        />
-      }
+
       
       {showStreakNotification && (
         <ReadingStreakNotification
@@ -831,7 +796,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#F9F5EB',
     justifyContent: 'center',
     zIndex: 1,
-    padding: 0,
   },
   header: {
     flexDirection: 'row',
@@ -886,16 +850,55 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     fontFamily: Platform.OS === 'ios' ? 'Avenir' : 'sans-serif',
   },
-  audioButton: {
-    padding: 8,
-    borderRadius: 20,
-    backgroundColor: 'transparent',
-    borderWidth: 0,
-  },
   pdfContainer: {
     flex: 1,
+  },
+  pdfContainerLarge: {
+    flex: 1,
+    borderRadius: 12,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  decorativeBackground: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 0,
+  },
+  patternContainer: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+  },
+  geometricPattern: {
+    position: 'absolute',
     width: '100%',
-    height: '100%',
+    height: '25%',
+    opacity: 0.08,
+  },
+  topPattern: {
+    top: 0,
+    backgroundColor: '#E8D5B5',
+  },
+  bottomPattern: {
+    bottom: 0,
+    backgroundColor: '#E8D5B5',
+  },
+  sideGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 1,
   },
   sectionDrawer: {
     position: 'absolute',
@@ -1029,80 +1032,5 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  decorativeBackground: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 0,
-  },
-  patternContainer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  geometricPattern: {
-    position: 'absolute',
-    width: '100%',
-    height: '30%',
-    opacity: 0.05,
-  },
-  topPattern: {
-    top: 0,
-    backgroundColor: '#5A9EBF',
-    borderBottomLeftRadius: 100,
-    borderBottomRightRadius: 100,
-  },
-  bottomPattern: {
-    bottom: 0,
-    backgroundColor: '#5A9EBF',
-    borderTopLeftRadius: 100,
-    borderTopRightRadius: 100,
-  },
-  sideGradient: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 1,
-  },
-  pdfContainerLarge: {
-    width: '100%',
-    height: '100%',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#f9f5eb', 
-  },
-  loadingText: {
-    marginTop: 10,
-    fontSize: 18,
-    color: '#5A9EBF',
-    fontFamily: Platform.OS === 'ios' ? 'Helvetica' : 'Roboto',
-  },
-  fallbackContainer: {
-    flex: 1,
-    position: 'relative',
-  },
-  resetButton: {
-    position: 'absolute',
-    bottom: 20,
-    alignSelf: 'center',
-    backgroundColor: '#5A9EBF',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-  },
-  resetButtonText: {
-    color: 'white',
-    fontSize: 14,
-    fontWeight: '600',
   },
 });
