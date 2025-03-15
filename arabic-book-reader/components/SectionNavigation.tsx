@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Platform, Animated, SafeAreaView, StatusBar } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import { Section } from '../models/Section';
 import { colors, fonts, spacing, radius, shadows } from '../constants/theme';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Format completion date in a nice, aesthetic way
 const formatCompletionDate = (date: Date | undefined): string => {
@@ -47,6 +48,7 @@ interface SectionNavigationProps {
   onClose: () => void;
   khatmCount: number;
   onReset?: () => Promise<void>;
+  onCompleteKhatm?: () => void;
 }
 
 const SectionNavigation: React.FC<SectionNavigationProps> = ({
@@ -55,7 +57,8 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   onSectionPress,
   onToggleComplete,
   onClose,
-  khatmCount
+  khatmCount,
+  onCompleteKhatm
 }) => {
   // Create references for animations
   const animatedValues = React.useRef(sections.map(() => new Animated.Value(1))).current;
@@ -181,6 +184,25 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
       </ScrollView>
       
       <View style={styles.footer}>
+        {onCompleteKhatm && (
+          <TouchableOpacity 
+            style={styles.completeKhatmButton}
+            onPress={onCompleteKhatm}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={['#D4AF37', '#F4C430', '#D4AF37']}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.completeKhatmGradient}
+            >
+              <View style={styles.completeKhatmContent}>
+                <FontAwesome5 name="star" size={16} color={colors.primary.white} style={styles.completeKhatmIcon} />
+                <Text style={styles.completeKhatmText}>Complete Khatm</Text>
+              </View>
+            </LinearGradient>
+          </TouchableOpacity>
+        )}
         <Text style={styles.footerText}>
           Track your progress through the book
         </Text>
@@ -320,6 +342,7 @@ const styles = StyleSheet.create({
     fontSize: fonts.size.sm,
     color: 'rgba(114, 187, 225, 0.7)',
     fontFamily: fonts.primaryFamily,
+    marginTop: spacing.md,
   },
   completionDateContainer: {
     flexDirection: 'row',
@@ -342,6 +365,34 @@ const styles = StyleSheet.create({
     color: colors.success,
     fontFamily: fonts.primaryFamily,
     fontWeight: '500',
+  },
+  completeKhatmButton: {
+    width: '90%',
+    borderRadius: radius.xl,
+    overflow: 'hidden',
+    ...shadows.medium,
+    marginBottom: spacing.sm,
+    marginTop: spacing.sm,
+  },
+  completeKhatmGradient: {
+    paddingVertical: spacing.md,
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  completeKhatmContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  completeKhatmIcon: {
+    marginRight: spacing.sm,
+  },
+  completeKhatmText: {
+    color: colors.primary.white,
+    fontSize: fonts.size.md,
+    fontWeight: 'bold',
+    fontFamily: fonts.boldFamily,
+    letterSpacing: 0.5,
   },
 });
 

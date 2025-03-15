@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform } from 'react-native';
+import { StyleSheet, View, SafeAreaView, TouchableOpacity, Animated, Dimensions, Text, Platform, Alert } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 import PageViewer from '../components/PageViewer';
@@ -591,6 +591,95 @@ export default function BookPage() {
     setIsAudioModalVisible(!isAudioModalVisible);
   };
   
+  // Handle complete khatm button press
+  const handleCompleteKhatm = () => {
+    // Show confirmation dialog
+    Alert.alert(
+      "Complete Khatm",
+      "This will mark all manzils as complete and count as a full khatm completion. Continue?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel"
+        },
+        {
+          text: "Complete",
+          onPress: async () => {
+            try {
+              // Mark all sections as complete with the current date
+              const now = new Date();
+              const completedSections = sections.map(section => ({
+                ...section,
+                isCompleted: true,
+                completionDate: now
+              }));
+              
+              // Update state
+              setSections(completedSections);
+              saveSections(completedSections);
+              
+              // Update reading streak
+              const { currentStreak, longestStreak } = await updateReadingStreak();
+              
+              // Increment khatm count
+              const newKhatmCount = khatmCount + 1;
+              setKhatmCount(newKhatmCount);
+              
+              // Save to storage
+              AsyncStorage.setItem('khatm_count', newKhatmCount.toString());
+              
+              // Calculate reward points - more points for consistent users
+              const rewardPoints = 500 + (currentStreak * 20);
+              
+              // Trigger stronger haptic feedback for completion
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setTimeout(() => {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              }, 300);
+              
+              // Close the section drawer
+              toggleSectionDrawer();
+              
+              // Set notification data for khatm completion
+              let message = '';
+              if (currentStreak > 1) {
+                message = `Congratulations on your ${newKhatmCount}${getOrdinalSuffix(newKhatmCount)} completion! You're on a ${currentStreak}-day streak. May Allah bless your dedication.`;
+              } else {
+                message = `Congratulations on completing your ${newKhatmCount}${getOrdinalSuffix(newKhatmCount)} read-through! May Allah accept your efforts.`;
+              }
+              
+              setNotificationData({
+                title: `Khatm #${newKhatmCount} Completed!`,
+                message,
+                isKhatm: true
+              });
+              
+              // Show notification after a short delay to ensure state is updated
+              setTimeout(() => {
+                setShowStreakNotification(true);
+              }, 300);
+              
+              // Reset sections after a delay
+              setTimeout(() => {
+                const resetSections = completedSections.map(section => ({
+                  ...section,
+                  isCompleted: false,
+                  completionDate: undefined
+                }));
+                
+                setSections(resetSections);
+                saveSections(resetSections);
+              }, 2000);
+            } catch (error) {
+              console.error('Error completing khatm:', error);
+              alert('An error occurred while completing khatm. Please try again.');
+            }
+          }
+        }
+      ]
+    );
+  };
+  
   // Update current section whenever current page changes
   useEffect(() => {
     // Only run this effect after initial load
@@ -689,6 +778,7 @@ export default function BookPage() {
           onToggleComplete={handleToggleComplete}
           onClose={toggleSectionDrawer}
           khatmCount={khatmCount}
+          onCompleteKhatm={handleCompleteKhatm}
         />
       </Animated.View>
       
@@ -716,6 +806,10 @@ export default function BookPage() {
         longestStreak={longestStreak}
         onClose={() => setShowStreakNotification(false)}
         isKhatm={notificationData.isKhatm}
+        completionNumber={notificationData.isKhatm ? khatmCount : undefined}
+        rewardPoints={notificationData.isKhatm ? 500 + (currentStreak * 20) : 50}
+        totalPoints={5000} // This should be replaced with actual total points from state
+        level={Math.min(Math.floor(khatmCount / 3) + 1, 5)}
       />
     </View>
   );

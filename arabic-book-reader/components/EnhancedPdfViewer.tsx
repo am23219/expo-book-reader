@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity, Animated } from 'react-native';
+import { StyleSheet, View, Text, Dimensions, ActivityIndicator, TouchableOpacity, Animated, TouchableWithoutFeedback, GestureResponderEvent } from 'react-native';
 import Pdf from 'react-native-pdf';
 import { Ionicons } from '@expo/vector-icons';
 import { Section } from '../models/Section';
@@ -21,7 +21,12 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalPages, setTotalPages] = useState(0);
+  const [showControls, setShowControls] = useState(true);
   const { width, height } = Dimensions.get('window');
+  
+  // Touch tracking for distinguishing between taps and swipes
+  const touchStartX = useRef<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   
   // Animation values for button press effects
   const prevButtonScale = React.useRef(new Animated.Value(1)).current;
@@ -45,6 +50,41 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       pdfRef.current.setPage(currentPage);
     }
   }, [currentPage, isInitialized]);
+  
+  // Function to toggle controls visibility
+  const toggleControls = () => {
+    setShowControls(prev => !prev);
+  };
+  
+  // Handle touch start to capture initial position
+  const handleTouchStart = (e: GestureResponderEvent) => {
+    touchStartX.current = e.nativeEvent.locationX;
+    touchStartY.current = e.nativeEvent.locationY;
+  };
+  
+  // Handle touch end to determine if it was a tap or swipe
+  const handleTouchEnd = (e: GestureResponderEvent) => {
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    
+    const touchEndX = e.nativeEvent.locationX;
+    const touchEndY = e.nativeEvent.locationY;
+    
+    // Calculate distance moved
+    const dx = Math.abs(touchEndX - touchStartX.current);
+    const dy = Math.abs(touchEndY - touchStartY.current);
+    
+    // If movement was minimal, consider it a tap and toggle controls
+    // Standard threshold is ~10 for distinguishing tap from scroll/swipe
+    const isTap = dx < 10 && dy < 10;
+    
+    if (isTap) {
+      toggleControls();
+    }
+    
+    // Reset touch tracking
+    touchStartX.current = null;
+    touchStartY.current = null;
+  };
   
   const animateButton = (animatedValue: Animated.Value) => {
     Animated.sequence([
@@ -93,8 +133,12 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         </View>
       )}
       
-      {/* Hide PDF until it's properly initialized */}
-      <View style={{ flex: 1, opacity: isInitialized ? 1 : 0 }}>
+      {/* Use custom touch handlers instead of TouchableWithoutFeedback */}
+      <View 
+        style={{ flex: 1, opacity: isInitialized ? 1 : 0 }}
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <Pdf
           ref={pdfRef}
           source={source}
@@ -140,66 +184,71 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           trustAllCerts={false}
           enableRTL={true}
           showsHorizontalScrollIndicator={false}
+          enableDoubleTapZoom={false}
         />
       </View>
       
-      {/* Navigation buttons */}
-      <View style={styles.navigationContainer}>
-        {/* Left nav button with animation */}
-        <Animated.View style={{ transform: [{ scale: prevButtonScale }] }}>
-          <TouchableOpacity 
-            style={[styles.navButton, currentPage >= totalPages ? styles.navButtonDisabled : styles.navButtonLeft]}
-            onPress={() => {
-              if (currentPage < totalPages) {
-                handleNextPage();
-              }
-            }}
-            disabled={currentPage >= totalPages}
-            activeOpacity={0.7}
-            accessibilityLabel="Next page"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: currentPage >= totalPages }}
-          >
-            <Ionicons 
-              name="chevron-back" 
-              size={22} 
-              color={currentPage >= totalPages ? "transparent" : colors.primary.deep} 
-            />
-          </TouchableOpacity>
-        </Animated.View>
-        
-        {/* Right nav button with animation */}
-        <Animated.View style={{ transform: [{ scale: nextButtonScale }] }}>
-          <TouchableOpacity 
-            style={[styles.navButton, currentPage <= 1 ? styles.navButtonDisabled : styles.navButtonRight]}
-            onPress={() => {
-              if (currentPage > 1) {
-                handlePrevPage();
-              }
-            }}
-            disabled={currentPage <= 1}
-            activeOpacity={0.7}
-            accessibilityLabel="Previous page"
-            accessibilityRole="button"
-            accessibilityState={{ disabled: currentPage <= 1 }}
-          >
-            <Ionicons 
-              name="chevron-forward" 
-              size={22} 
-              color={currentPage <= 1 ? "transparent" : colors.primary.deep} 
-            />
-          </TouchableOpacity>
-        </Animated.View>
-      </View>
-      
-      {/* Page number indicator */}
-      <View style={styles.pageIndicator}>
-        <View style={styles.pageIndicatorInner}>
-          <Text style={styles.pageIndicatorText}>
-            {currentPage} / {totalPages}
-          </Text>
+      {/* Navigation buttons - conditionally rendered based on showControls */}
+      {showControls && (
+        <View style={styles.navigationContainer}>
+          {/* Left nav button with animation */}
+          <Animated.View style={{ transform: [{ scale: prevButtonScale }] }}>
+            <TouchableOpacity 
+              style={[styles.navButton, currentPage >= totalPages ? styles.navButtonDisabled : styles.navButtonLeft]}
+              onPress={() => {
+                if (currentPage < totalPages) {
+                  handleNextPage();
+                }
+              }}
+              disabled={currentPage >= totalPages}
+              activeOpacity={0.7}
+              accessibilityLabel="Next page"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: currentPage >= totalPages }}
+            >
+              <Ionicons 
+                name="chevron-back" 
+                size={22} 
+                color={currentPage >= totalPages ? "transparent" : colors.primary.deep} 
+              />
+            </TouchableOpacity>
+          </Animated.View>
+          
+          {/* Right nav button with animation */}
+          <Animated.View style={{ transform: [{ scale: nextButtonScale }] }}>
+            <TouchableOpacity 
+              style={[styles.navButton, currentPage <= 1 ? styles.navButtonDisabled : styles.navButtonRight]}
+              onPress={() => {
+                if (currentPage > 1) {
+                  handlePrevPage();
+                }
+              }}
+              disabled={currentPage <= 1}
+              activeOpacity={0.7}
+              accessibilityLabel="Previous page"
+              accessibilityRole="button"
+              accessibilityState={{ disabled: currentPage <= 1 }}
+            >
+              <Ionicons 
+                name="chevron-forward" 
+                size={22} 
+                color={currentPage <= 1 ? "transparent" : colors.primary.deep} 
+              />
+            </TouchableOpacity>
+          </Animated.View>
         </View>
-      </View>
+      )}
+      
+      {/* Page number indicator - conditionally rendered based on showControls */}
+      {showControls && (
+        <View style={styles.pageIndicator}>
+          <View style={styles.pageIndicatorInner}>
+            <Text style={styles.pageIndicatorText}>
+              {currentPage} / {totalPages}
+            </Text>
+          </View>
+        </View>
+      )}
     </View>
   );
 };
