@@ -8,7 +8,14 @@ module.exports = {
   newArchEnabled: false,
   plugins: [
     "expo-asset",
-    "@config-plugins/react-native-pdf"
+    ["@config-plugins/react-native-pdf", {
+      ios: {
+        trustAllCerts: true
+      },
+      android: {
+        trustAllCerts: true
+      }
+    }]
   ],
   splash: {
     image: "./assets/splash.png",
@@ -16,7 +23,11 @@ module.exports = {
     backgroundColor: "#ffffff"
   },
   assetBundlePatterns: [
-    "**/*"
+    "assets/pdf/Barakaat_Makiyyah.pdf",
+    "assets/images/*",
+    "assets/fonts/*",
+    "assets/audio/*",
+    "assets/*.png"
   ],
   ios: {
     supportsTablet: true,
@@ -27,7 +38,9 @@ module.exports = {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff"
     },
-    package: "com.barakatmakiyyah.arabicbookreader"
+    package: "com.barakatmakiyyah.arabicbookreader",
+    permissions: [],
+    jsEngine: "hermes"
   },
   web: {
     favicon: "./assets/favicon.png"

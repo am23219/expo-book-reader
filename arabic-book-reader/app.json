@@ -3,5 +3,11 @@
     "image": "./assets/splash.png",
     "resizeMode": "contain",
     "backgroundColor": "#ffffff"
-  }
+  },
+  "assetBundlePatterns": [
+    "assets/pdf/*",
+    "assets/images/*",
+    "assets/fonts/*",
+    "assets/audio/*"
+  ]
 } 
