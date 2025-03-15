@@ -1,0 +1,721 @@
+import React, { useRef, useState, useEffect } from 'react';
+import { View, Text, TouchableOpacity, Animated, ScrollView, StyleSheet } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useWindowDimensions } from 'react-native';
+import { enhancedColors, spacing, radius, fonts } from '../../styles';
+
+const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
+  visible,
+  title,
+  readingDays,
+  currentStreak,
+  longestStreak,
+  onClose,
+  isKhatm = false,
+  completionNumber = 1,
+  level = 1,
+  newAchievement = '',
+  rewardPoints = 0,
+  totalPoints = 0,
+}) => {
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
+  const isSmallScreen = windowWidth < 375;
+  const modalWidth = windowWidth * 0.9;
+  const responsiveSpacing = (size: number) => isSmallScreen ? size * 0.8 : size;
+  const responsiveFontSize = (size: number) => isSmallScreen ? size * 0.9 : size;
+
+  // Add a ref to track if component is mounted
+  const isMounted = useRef(true);
+
+  const slideAnim = useRef(new Animated.Value(-300)).current;
+  const opacityAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const badgeScaleAnim = useRef(new Animated.Value(0.5)).current;
+  const rotateAnim = useRef(new Animated.Value(0)).current;
+  const rewardScaleAnim = useRef(new Animated.Value(0.5)).current;
+  const titleShimmerAnim = useRef(new Animated.Value(0)).current;
+  const buttonScaleAnim = useRef(new Animated.Value(1)).current;
+  const currentStreakAnim = useRef(new Animated.Value(1)).current;
+  const buttonRippleAnim = useRef(new Animated.Value(0)).current;
+  
+  // State for random wisdom quote and content sections
+  const [wisdomQuote, setWisdomQuote] = useState('');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [expandedSections, setExpandedSections] = useState<{[key: string]: boolean}>({
+    achievement: true,
+    streak: true,
+    wisdom: false,
+    weeklyProgress: true
+  });
+  const confettiAnimation = useRef<any>(null);
+  
+  // Create refs for day animations
+  const dayAnimRefs = useRef<Animated.Value[]>(readingDays.map(() => new Animated.Value(0)));
+  
+  // Function to handle haptic feedback
+  const triggerHaptic = (type: 'light' | 'medium' | 'heavy' | 'success' = 'medium') => {
+    if (Platform.OS === 'ios' || Platform.OS === 'android') {
+      switch(type) {
+        case 'light':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          break;
+        case 'heavy':
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+          break;
+        case 'success':
+          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+          break;
+        default:
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
+    }
+  };
+
+  // Toggle section expansion
+  const toggleSection = (section: string) => {
+    setExpandedSections(prev => ({
+      ...prev,
+      [section]: !prev[section]
+    }));
+    triggerHaptic('light');
+  };
+  
+  // ... existing useEffect code ...
+  
+  return (
+    <View style={styles.container} pointerEvents="box-none">
+      {renderConfetti()}
+      
+      <Animated.View 
+        style={[
+          styles.notification,
+          isKhatm && styles.khatmNotification,
+          {
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ],
+            opacity: opacityAnim,
+            width: modalWidth,
+            maxWidth: 500,
+            maxHeight: windowHeight * 0.85,
+          }
+        ]}
+      >
+        <LinearGradient
+          colors={isKhatm ? 
+            enhancedColors.gradients.khatmTitle : 
+            enhancedColors.gradients.primaryTitle}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={styles.notificationBorder}
+        />
+        
+        <View style={styles.header}>
+          <Text style={styles.modalType}>{isKhatm ? 'SALAWAT COMPLETION' : 'ACHIEVEMENT'}</Text>
+          <TouchableOpacity 
+            onPress={onClose} 
+            style={styles.closeButton} 
+            hitSlop={{ top: 15, right: 15, bottom: 15, left: 15 }}
+            accessibilityLabel="Close notification"
+            accessibilityRole="button"
+          >
+            <Ionicons name="close" size={22} color={enhancedColors.text.secondary} />
+          </TouchableOpacity>
+        </View>
+        
+        <ScrollView 
+          showsVerticalScrollIndicator={false} 
+          contentContainerStyle={styles.scrollContent}
+          bounces={true} // Enable bouncing for a more interactive feel
+        >
+          {/* Primary Achievement Section - Always visible and prominent */}
+          <View style={styles.primarySection}>
+            <View style={styles.titleBoxContainer}>
+              <LinearGradient
+                colors={isKhatm ? 
+                  enhancedColors.gradients.khatmTitle : 
+                  enhancedColors.gradients.primaryTitle}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.titleGradient}
+              >
+                {/* Add subtle pattern overlay */}
+                <View style={styles.patternOverlay} />
+                
+                <Animated.View style={[
+                  styles.shineEffect, 
+                  {transform: [{ translateX: shimmerTranslate }]}
+                ]} />
+                
+                <View style={styles.titleIconContainer}>
+                  <LinearGradient
+                    colors={isKhatm ? 
+                      [enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const : 
+                      [enhancedColors.primary.deepNavy, enhancedColors.primary.royalBlue] as const}
+                    style={styles.iconCircle}
+                  >
+                    <MaterialCommunityIcons 
+                      name={isKhatm ? "star-four-points" : "book-open-page-variant"} 
+                      size={24} 
+                      color="#FFFFFF" 
+                    />
+                  </LinearGradient>
+                </View>
+                
+                <View style={styles.titleTextContainer}>
+                  <Text 
+                    style={[styles.title, isKhatm && styles.khatmTitle]}
+                    accessibilityRole="header"
+                  >
+                    {title}
+                  </Text>
+                  {isKhatm && (
+                    <LinearGradient 
+                      colors={[enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const} 
+                      style={styles.badge}
+                    >
+                      <Text style={styles.badgeText}>Salawat</Text>
+                    </LinearGradient>
+                  )}
+                </View>
+              </LinearGradient>
+            </View>
+            
+            {/* Badge/Achievement Section */}
+            {(isKhatm || completionNumber > 0) && (
+              <Animated.View 
+                style={[
+                  styles.achievementBadgeStyle, 
+                  { transform: [{ scale: badgeScaleAnim }, { rotate: spin }] }
+                ]}
+                accessibilityLabel={`Achievement badge number ${completionNumber}`}
+              >
+                <LinearGradient
+                  colors={isKhatm ? 
+                    ['#D4AF37', '#F4C430', '#D4AF37'] as const :
+                    ['#2A2D74', '#3A3D84', '#72BBE1'] as const}
+                  style={styles.achievementBadgeInnerStyle}
+                >
+                  <Text style={styles.achievementIconStyle}>
+                    {getBadgeIcon(isKhatm ? 'khatm' : 'manzil', Math.min(completionNumber - 1, 4))}
+                  </Text>
+                  <Text style={styles.achievementCountStyle}>#{completionNumber}</Text>
+                </LinearGradient>
+              </Animated.View>
+            )}
+          </View>
+
+          {/* Collapsible Streak Section */}
+          <CollapsibleSection
+            title="Your Streak"
+            icon={isKhatm ? "flame" : "flame"} 
+            iconColor={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue}
+            isExpanded={expandedSections.streak}
+            onToggle={() => toggleSection('streak')}
+            isKhatm={isKhatm}
+          >
+            <View style={[styles.streakSection, isKhatm && styles.khatmStreakSection]}>
+              <LinearGradient 
+                colors={isKhatm ? 
+                  enhancedColors.gradients.khatmStreakBox : 
+                  enhancedColors.gradients.streakBox}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.streakContainer}
+              >
+                <Animated.View 
+                  style={[styles.streakInfo, { transform: [{ scale: currentStreakAnim }] }]}
+                  accessibilityLabel={`Current streak ${currentStreak} days`}
+                >
+                  <Text style={[styles.streakCount, isKhatm && styles.khatmStreakCount]}>
+                    {currentStreak}
+                  </Text>
+                  <View style={styles.streakIconContainerStyle}>
+                    <Ionicons 
+                      name="flame" 
+                      size={16} 
+                      color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
+                    />
+                  </View>
+                  <Text style={styles.streakLabel}>Current Streak</Text>
+                </Animated.View>
+                <View style={[styles.streakInfoDivider, isKhatm && styles.khatmDivider]} />
+                <View 
+                  style={styles.streakInfo}
+                  accessibilityLabel={`Longest streak ${longestStreak} days`}
+                >
+                  <Text style={[styles.streakCount, isKhatm && styles.khatmStreakCount]}>
+                    {longestStreak}
+                  </Text>
+                  <View style={styles.streakIconContainerStyle}>
+                    <Ionicons 
+                      name="trophy" 
+                      size={16} 
+                      color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
+                    />
+                  </View>
+                  <Text style={styles.streakLabel}>Longest Streak</Text>
+                </View>
+              </LinearGradient>
+            </View>
+          </CollapsibleSection>
+          
+          {/* Collapsible Weekly Progress */}
+          <CollapsibleSection
+            title="7-Day Progress"
+            icon="calendar" 
+            iconColor={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue}
+            isExpanded={expandedSections.weeklyProgress}
+            onToggle={() => toggleSection('weeklyProgress')}
+            isKhatm={isKhatm}
+          >
+            <View style={[styles.weeklyProgressContainer, { marginHorizontal: responsiveSpacing(spacing.xs) }]}>
+              <View style={[styles.daysContainer, { 
+                justifyContent: isSmallScreen ? 'space-between' : 'space-around' 
+              }]}>
+                {readingDays.map((day, index) => renderDayCircle(day, index))}
+              </View>
+            </View>
+          </CollapsibleSection>
+
+          {/* Wisdom Quote Section - Collapsible for focus */}
+          <CollapsibleSection
+            title={isKhatm ? "Virtues of Salawat" : "Wisdom"}
+            icon={isKhatm ? "heart-circle" : "book"} 
+            iconColor={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue}
+            isExpanded={expandedSections.wisdom}
+            onToggle={() => toggleSection('wisdom')}
+            isKhatm={isKhatm}
+          >
+            <View style={[styles.wisdomContainer, isKhatm && styles.khatmWisdomContainer]}>
+              <LinearGradient
+                colors={isKhatm ? 
+                  ['rgba(212, 175, 55, 0.15)', 'rgba(244, 196, 48, 0.08)'] as const : 
+                  enhancedColors.gradients.quote}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.wisdomGradient, isKhatm && styles.khatmWisdomGradient]}
+              >
+                <View style={styles.quoteDecoration}>
+                  <FontAwesome5 
+                    name="quote-left" 
+                    size={18} 
+                    color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.royalBlue} 
+                    style={styles.quoteIcon}
+                  />
+                </View>
+                <Text 
+                  style={[styles.wisdomText, isKhatm && styles.khatmWisdomText]}
+                  accessibilityLabel={`Wisdom quote: ${wisdomQuote}`}
+                >
+                  {wisdomQuote}
+                </Text>
+                <View style={styles.quoteEndDecoration}>
+                  <FontAwesome5 
+                    name="quote-right" 
+                    size={16} 
+                    color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.royalBlue} 
+                    style={[styles.quoteIcon, styles.quoteEndIcon]}
+                  />
+                </View>
+              </LinearGradient>
+            </View>
+          </CollapsibleSection>
+
+          {/* Rank Level Info */}
+          {level > 0 && (
+            <View style={[styles.levelContainer]}>
+              <LinearGradient
+                colors={isKhatm ? 
+                  ['rgba(212, 175, 55, 0.25)', 'rgba(244, 196, 48, 0.15)'] : 
+                  ['rgba(42, 45, 116, 0.25)', 'rgba(66, 84, 185, 0.15)']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.levelGradient}
+              >
+                <View style={styles.levelIconContainer}>
+                  <LinearGradient
+                    colors={isKhatm ? 
+                      [enhancedColors.gold.rich, enhancedColors.gold.vibrant] : 
+                      [enhancedColors.primary.deepNavy, enhancedColors.primary.royalBlue]}
+                    style={styles.levelIconBg}
+                  >
+                    <FontAwesome5 
+                      name="user-graduate" 
+                      size={16} 
+                      color="#FFFFFF" 
+                    />
+                  </LinearGradient>
+                </View>
+                <View style={styles.levelTextContainer}>
+                  <Text style={styles.levelCaption}>Current Rank</Text>
+                  <View style={styles.levelNameContainerStyle}>
+                    <Text 
+                      style={[styles.levelText, isKhatm && styles.khatmLevelText]}
+                      accessibilityLabel={`Level ${level} Reciter`}
+                    >
+                      Level {level} Reciter
+                    </Text>
+                    {level > 1 && (
+                      <View style={styles.levelBadgeContainerStyle}>
+                        <FontAwesome5 
+                          name={level >= 5 ? "crown" : level >= 3 ? "star" : "medal"} 
+                          size={14} 
+                          color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
+                          style={styles.levelBadgeIconStyle}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+          
+          {/* Points Display - New Feature */}
+          {(rewardPoints > 0 || totalPoints > 0) && (
+            <View style={styles.pointsContainer}>
+              <LinearGradient
+                colors={isKhatm ? 
+                  ['rgba(212, 175, 55, 0.15)', 'rgba(244, 196, 48, 0.1)'] as const : 
+                  ['rgba(42, 45, 116, 0.15)', 'rgba(66, 84, 185, 0.1)'] as const}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.pointsGradient}
+              >
+                <View style={styles.pointsContent}>
+                  {rewardPoints > 0 && (
+                    <Animated.View style={[
+                      styles.rewardPointsContainer, 
+                      { transform: [{ scale: rewardScaleAnim }] }
+                    ]}>
+                      <Text style={styles.pointsLabel}>Points Earned</Text>
+                      <View style={styles.pointsValueContainer}>
+                        <Text style={[
+                          styles.pointsValue, 
+                          isKhatm && styles.khatmPointsValue
+                        ]}>
+                          +{rewardPoints}
+                        </Text>
+                        <MaterialCommunityIcons 
+                          name="star-circle" 
+                          size={16} 
+                          color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
+                          style={styles.pointsIcon}
+                        />
+                      </View>
+                    </Animated.View>
+                  )}
+                  
+                  {totalPoints > 0 && (
+                    <View style={styles.totalPointsContainer}>
+                      <Text style={styles.pointsLabel}>Total Points</Text>
+                      <View style={styles.pointsValueContainer}>
+                        <Text style={[
+                          styles.totalPointsValue, 
+                          isKhatm && styles.khatmTotalPointsValue
+                        ]}>
+                          {totalPoints}
+                        </Text>
+                        <MaterialCommunityIcons 
+                          name="bank" 
+                          size={16} 
+                          color={isKhatm ? enhancedColors.gold.rich : enhancedColors.primary.vibrantBlue} 
+                          style={styles.pointsIcon}
+                        />
+                      </View>
+                    </View>
+                  )}
+                </View>
+              </LinearGradient>
+            </View>
+          )}
+          
+          {/* New Achievement Banner */}
+          {newAchievement && (
+            <View style={[styles.newAchievementContainer, isKhatm && styles.khatmAchievementContainer]}>
+              <View style={styles.achievementIconWrapper}>
+                <LinearGradient
+                  colors={isKhatm ? 
+                    ['#D4AF37', '#F4C430'] : 
+                    ['#2A2D74', '#3A3D84']}
+                  style={styles.newAchievementBadge}
+                >
+                  <FontAwesome5 name="medal" size={18} color="#FFFFFF" />
+                </LinearGradient>
+              </View>
+              <View style={styles.achievementTextContainer}>
+                <Text style={styles.newAchievementTitle}>Achievement Unlocked!</Text>
+                <Text 
+                  style={styles.newAchievementName}
+                  accessibilityLabel={`New achievement: ${newAchievement}`}
+                >
+                  {newAchievement}
+                </Text>
+              </View>
+            </View>
+          )}
+        </ScrollView>
+        
+        <View style={styles.footer}>
+          {/* Add Share Button */}
+          <View style={styles.buttonRow}>
+            <TouchableOpacity 
+              style={[styles.shareButton]} 
+              onPress={() => {
+                triggerHaptic('light');
+                // Share achievement logic would go here
+              }}
+              accessibilityLabel="Share your achievement"
+              accessibilityRole="button"
+            >
+              <View style={styles.shareButtonContent}>
+                <FontAwesome5 name="share-alt" size={16} color={isKhatm ? enhancedColors.gold.deep : enhancedColors.primary.deepNavy} />
+                <Text style={[styles.shareButtonText, isKhatm && styles.khatmShareButtonText]}>SHARE</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.button, isKhatm && styles.khatmButton]} 
+              onPress={handleContinueReading}
+              activeOpacity={0.7}
+              accessibilityLabel="Continue reading"
+              accessibilityRole="button"
+            >
+              <LinearGradient
+                colors={isKhatm ? 
+                  enhancedColors.gradients.khatmButton : 
+                  enhancedColors.gradients.button}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={styles.buttonGradient}
+              >
+                <Animated.View style={[styles.buttonTextContainer, { transform: [{ scale: buttonScaleAnim }] }]}>
+                  <Text style={styles.buttonText}>CONTINUE</Text>
+                  <Ionicons 
+                    name="arrow-forward" 
+                    size={18} 
+                    color="#FFFFFF" 
+                    style={styles.buttonIcon} 
+                  />
+                </Animated.View>
+                <Animated.View style={[styles.buttonRipple, {
+                  transform: [{ scale: buttonRippleScale }],
+                  opacity: buttonRippleOpacity
+                }]} />
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Animated.View>
+    </View>
+  );
+};
+
+// Collapsible Section Component for better organization
+const CollapsibleSection = ({
+  title,
+  icon,
+  iconColor,
+  children,
+  isExpanded,
+  onToggle,
+  isKhatm = false
+}: {
+  title: string;
+  icon: string;
+  iconColor: string;
+  children: React.ReactNode;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isKhatm?: boolean;
+}) => {
+  return (
+    <View style={styles.collapsibleSection}>
+      <TouchableOpacity 
+        style={[
+          styles.sectionHeader,
+          isKhatm && styles.khatmSectionHeader
+        ]} 
+        onPress={onToggle}
+        activeOpacity={0.7}
+      >
+        <View style={styles.sectionHeaderContent}>
+          <Ionicons name={icon as any} size={18} color={iconColor} style={styles.sectionIcon} />
+          <Text style={[
+            styles.sectionTitle,
+            isKhatm && styles.khatmSectionTitle
+          ]}>
+            {title}
+          </Text>
+        </View>
+        <Ionicons 
+          name={isExpanded ? "chevron-up" : "chevron-down"} 
+          size={18} 
+          color={iconColor} 
+        />
+      </TouchableOpacity>
+      
+      {isExpanded && (
+        <View style={styles.sectionContent}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+};
+// ... existing code ...
+
+// Add the new styles
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)', // Slightly darker overlay for better contrast
+    zIndex: 1000,
+  },
+  // Keep existing styles and add new ones:
+  modalType: {
+    fontSize: fonts.size.xs,
+    color: enhancedColors.text.secondary,
+    fontWeight: '600',
+    letterSpacing: 1,
+    flex: 1,
+  },
+  primarySection: {
+    marginBottom: spacing.md,
+  },
+  collapsibleSection: {
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(66, 84, 185, 0.1)',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: spacing.sm,
+    backgroundColor: 'rgba(66, 84, 185, 0.05)',
+    borderRadius: radius.md,
+  },
+  khatmSectionHeader: {
+    backgroundColor: 'rgba(212, 175, 55, 0.05)',
+  },
+  sectionHeaderContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  sectionIcon: {
+    marginRight: spacing.xs,
+  },
+  sectionTitle: {
+    fontSize: fonts.size.sm,
+    fontWeight: '600',
+    color: enhancedColors.primary.deepNavy,
+  },
+  khatmSectionTitle: {
+    color: enhancedColors.gold.deep,
+  },
+  sectionContent: {
+    padding: spacing.sm,
+  },
+  buttonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+  },
+  shareButton: {
+    paddingVertical: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: 'rgba(66, 84, 185, 0.2)',
+    backgroundColor: 'rgba(66, 84, 185, 0.05)',
+    marginRight: spacing.sm,
+  },
+  shareButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  shareButtonText: {
+    fontSize: fonts.size.sm,
+    fontWeight: '700',
+    color: enhancedColors.primary.deepNavy,
+    marginLeft: spacing.xs,
+  },
+  khatmShareButtonText: {
+    color: enhancedColors.gold.deep,
+  },
+  pointsContainer: {
+    marginBottom: spacing.md,
+    borderRadius: radius.lg,
+    overflow: 'hidden',
+  },
+  pointsGradient: {
+    borderRadius: radius.lg,
+    padding: spacing.md,
+  },
+  pointsContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+  },
+  rewardPointsContainer: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+  },
+  totalPointsContainer: {
+    alignItems: 'center',
+    paddingHorizontal: spacing.md,
+    borderLeftWidth: 1,
+    borderLeftColor: 'rgba(66, 84, 185, 0.1)',
+  },
+  pointsLabel: {
+    fontSize: fonts.size.xs,
+    color: enhancedColors.text.secondary,
+    marginBottom: 2,
+  },
+  pointsValueContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  pointsValue: {
+    fontSize: fonts.size.md,
+    fontWeight: '700',
+    color: '#4CAF50',
+  },
+  khatmPointsValue: {
+    color: '#4CAF50',
+  },
+  totalPointsValue: {
+    fontSize: fonts.size.md,
+    fontWeight: '700',
+    color: enhancedColors.primary.deepNavy,
+  },
+  khatmTotalPointsValue: {
+    color: enhancedColors.gold.deep,
+  },
+  pointsIcon: {
+    marginLeft: spacing.xs / 2,
+  },
+  achievementIconWrapper: {
+    marginRight: spacing.sm,
+  },
+  // Add to existing styles and keep all the other styles intact
+  // ... existing styles ...
+});
+
+export default ReadingStreakNotification; 

@@ -103,7 +103,6 @@ export default function BookPage() {
   const [showStreakNotification, setShowStreakNotification] = useState(false);
   const [notificationData, setNotificationData] = useState({
     title: '',
-    message: '',
     isKhatm: false
   });
   
@@ -440,18 +439,10 @@ export default function BookPage() {
       // Vibrate to give feedback
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       
-      // Calculate reading streak message
-      let streakMessage = '';
-      if (currentStreak > 1) {
-        streakMessage = `You're on a ${currentStreak}-day reading streak! Keep it up!`;
-      } else {
-        streakMessage = `Great job completing this manzil! Read tomorrow to start a streak.`;
-      }
       
       // Set notification data
       setNotificationData({
         title: `${section.title} Completed!`,
-        message: streakMessage,
         isKhatm: false
       });
       
@@ -504,7 +495,6 @@ export default function BookPage() {
       
       setNotificationData({
         title: `Khatm #${newKhatmCount} Completed!`,
-        message,
         isKhatm: true
       });
       
@@ -650,7 +640,6 @@ export default function BookPage() {
               
               setNotificationData({
                 title: `Khatm #${newKhatmCount} Completed!`,
-                message,
                 isKhatm: true
               });
               
@@ -800,7 +789,6 @@ export default function BookPage() {
       <ReadingStreakNotification 
         visible={showStreakNotification}
         title={notificationData.title}
-        message={notificationData.message}
         readingDays={getPast7Days()}
         currentStreak={currentStreak}
         longestStreak={longestStreak}
