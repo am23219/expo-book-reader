@@ -1,5 +1,17 @@
-require File.join(File.dirname(`node --print "require.resolve('expo/package.json')"`), "scripts/autolinking")
-require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
+#!/bin/bash
+
+# Clean up build folders and Pods
+rm -rf ios/build
+rm -rf ios/DerivedData
+rm -rf ios/Pods
+
+# Create a temporary backup of the Podfile
+cp ios/Podfile ios/Podfile.backup
+
+# Modify the Podfile to use a post-install hook to remove the problematic modulemap
+cat > ios/Podfile << EOL
+require File.join(File.dirname(\`node --print "require.resolve('expo/package.json')"\`), "scripts/autolinking")
+require File.join(File.dirname(\`node --print "require.resolve('react-native/package.json')"\`), "scripts/react_native_pods")
 
 require 'json'
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
@@ -36,7 +48,7 @@ target 'BarakaatMakkiyyah' do
       'node',
       '--no-warnings',
       '--eval',
-      'require(require.resolve(\'expo-modules-autolinking\', { paths: [require.resolve(\'expo/package.json\')] }))(process.argv.slice(1))',
+      'require(require.resolve(\\'expo-modules-autolinking\\', { paths: [require.resolve(\\'expo/package.json\\')] }))(process.argv.slice(1))',
       'react-native-config',
       '--json',
       '--platform',
@@ -59,7 +71,7 @@ target 'BarakaatMakkiyyah' do
 
   post_install do |installer|
     # Remove the duplicate modulemap file
-    system("rm -f /Headers/Public/ReactCommon/ReactCommon.modulemap")
+    system("rm -f ${PODS_ROOT}/Headers/Public/ReactCommon/ReactCommon.modulemap")
     
     react_native_post_install(
       installer,
@@ -80,3 +92,11 @@ target 'BarakaatMakkiyyah' do
     end
   end
 end
+EOL
+
+# Remove all pods and reinstall
+cd ios
+pod install
+cd ..
+
+echo "✅ ReactCommon modulemap issue fixed. Now try running 'npx expo run:ios' again." 

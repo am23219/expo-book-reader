@@ -118,8 +118,8 @@ const SimpleAudioPlayer: React.FC<SimpleAudioPlayerProps> = ({
         setIsLoading(true);
         // Determine audio source based on current section
         // const audioSource = playFullBook 
-        //   ? require(`../assets/audio/full_book.mp3`) // Replace with your actual path
-        //   : require(`../assets/audio/section_${currentSection.id}.mp3`); // Dynamic import
+        //   ? require('../assets/audio/full_book.mp3') // Replace with your actual path
+        //   : require('../assets/audio/section_' + currentSection.id + '.mp3'); // Fixed dynamic import
         
         // const { sound: newSound } = await Audio.Sound.createAsync(
         //   audioSource,

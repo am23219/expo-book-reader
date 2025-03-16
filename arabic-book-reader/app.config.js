@@ -38,7 +38,7 @@ module.exports = {
       {
         ios: {
           entitlements: {
-            "com.apple.security.application-groups": ["group.com.barakatmakiyyah.arabicbookreader"]
+            "com.apple.security.application-groups": ["group.com.honeysystems.barakaatmakiyyah"]
           }
         }
       }
@@ -58,9 +58,11 @@ module.exports = {
   ],
   ios: {
     supportsTablet: true,
-    bundleIdentifier: "com.barakatmakiyyah.arabicbookreader",
+    bundleIdentifier: "com.honeysystems.barakaatmakiyyah",
+    buildNumber: "2",
     infoPlist: {
-      UIBackgroundModes: ["remote-notification"]
+      UIBackgroundModes: ["remote-notification"],
+      ITSAppUsesNonExemptEncryption: false
     }
   },
   android: {
@@ -68,7 +70,8 @@ module.exports = {
       foregroundImage: "./assets/adaptive-icon.png",
       backgroundColor: "#ffffff"
     },
-    package: "com.barakatmakiyyah.arabicbookreader",
+    package: "com.honeysystems.barakaatmakiyyah",
+    versionCode: 2,
     permissions: ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
     jsEngine: "hermes"
   },
@@ -77,7 +80,7 @@ module.exports = {
   },
   extra: {
     eas: {
-      projectId: "arabic-book-reader"
+      projectId: "dd28f021-7e74-410e-b5d0-615e73b491ee"
     }
   },
   build: {

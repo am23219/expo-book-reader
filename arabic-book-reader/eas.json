@@ -1,6 +1,7 @@
 {
   "cli": {
-    "version": ">= 3.13.0"
+    "version": ">= 3.13.0",
+    "appVersionSource": "local"
   },
   "build": {
     "development": {
@@ -27,6 +28,10 @@
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6743355904"
+      }
+    }
   }
 }

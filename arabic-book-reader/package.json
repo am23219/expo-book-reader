@@ -25,7 +25,7 @@
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
     "eas": "^0.1.0",
-    "expo": "^52.0.38",
+    "expo": "^52.0.39",
     "expo-asset": "~11.0.4",
     "expo-av": "~15.0.2",
     "expo-blur": "~14.0.3",
@@ -68,6 +68,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/plugin-proposal-export-namespace-from": "^7.18.9",
+    "@babel/plugin-syntax-dynamic-import": "^7.8.3",
     "@react-native-community/cli": "^17.0.0",
     "@types/jest": "^29.5.12",
     "@types/react": "~18.3.12",
