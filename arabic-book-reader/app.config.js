@@ -1,7 +1,7 @@
 module.exports = {
   name: "Barakaat Makkiyyah",
   slug: "arabic-book-reader",
-  version: "1.0.0",
+  version: "1.0.5",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
@@ -17,11 +17,22 @@ module.exports = {
       }
     }],
     [
+      "expo-splash-screen",
+      {
+        imageResizeMode: "contain",
+        backgroundColor: "#ffffff",
+        image: "./assets/splash.png",
+        androidSplashResourceFolder: "drawable",
+        hideExponentIconDuringLoading: true,
+        splashScreenDelay: 0
+      }
+    ],
+    [
       "expo-notifications",
       {
         icon: "./assets/notification-icon.png",
         color: "#ffffff",
-        sounds: ["./assets/notification-sound.wav"],
+        sounds: ["./assets/notification_sound.wav"],
         mode: "production",
         androidMode: "default",
         androidCollapsedTitle: "Barakaat Makkiyyah",
@@ -47,7 +58,13 @@ module.exports = {
   splash: {
     image: "./assets/splash.png",
     resizeMode: "contain",
-    backgroundColor: "#ffffff"
+    backgroundColor: "#ffffff",
+    android: {
+      imageWidth: 300
+    },
+    ios: {
+      supportsTablet: true
+    }
   },
   assetBundlePatterns: [
     "assets/pdf/Barakaat_Makiyyah.pdf",
@@ -59,7 +76,7 @@ module.exports = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.honeysystems.barakaatmakiyyah",
-    buildNumber: "2",
+    buildNumber: "8",
     infoPlist: {
       UIBackgroundModes: ["remote-notification"],
       ITSAppUsesNonExemptEncryption: false
@@ -71,7 +88,7 @@ module.exports = {
       backgroundColor: "#ffffff"
     },
     package: "com.honeysystems.barakaatmakiyyah",
-    versionCode: 2,
+    versionCode: 7,
     permissions: ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
     jsEngine: "hermes"
   },

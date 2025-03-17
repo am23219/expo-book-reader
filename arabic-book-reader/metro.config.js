@@ -3,8 +3,8 @@ const { getDefaultConfig } = require('@expo/metro-config');
 
 const config = getDefaultConfig(__dirname);
 
-// Add additional file extensions to assetExts for PDF files
-config.resolver.assetExts.push('pdf');
+// Explicitly defining asset extensions for better cross-platform consistency
+config.resolver.assetExts = ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'svg', ...config.resolver.assetExts];
 
 // Add support for TypeScript files
 config.resolver.sourceExts = ['jsx', 'js', 'ts', 'tsx', 'json'];

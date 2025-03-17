@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { StyleSheet, View, Alert, Modal, Animated } from 'react-native';
+import { StyleSheet, View, Alert, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -188,6 +188,13 @@ export default function BookPage() {
         )}
       </View>
       
+      {/* Overlay to close drawer when tapping outside */}
+      {sectionData.isSectionDrawerOpen && (
+        <TouchableWithoutFeedback onPress={sectionActions.toggleSectionDrawer}>
+          <View style={styles.drawerOverlay} />
+        </TouchableWithoutFeedback>
+      )}
+      
       {/* Drawer Navigation */}
       <Animated.View 
         style={[
@@ -224,7 +231,11 @@ export default function BookPage() {
         longestStreak={streakData.longestStreak}
         onClose={() => khatmActions.setShowNotification(false)}
         isKhatm={khatmData.notificationData.isKhatm}
-        completionNumber={khatmData.notificationData.isKhatm ? khatmData.khatmCount : undefined}
+        completionNumber={khatmData.notificationData.isKhatm 
+          ? khatmData.khatmCount 
+          : khatmData.notificationData.title.includes('Manzil') 
+            ? parseInt(khatmData.notificationData.title.match(/Manzil (\d+)/)?.[1] || '1') 
+            : undefined}
         rewardPoints={khatmData.notificationData.isKhatm ? 500 + (streakData.currentStreak * 20) : 50}
         totalPoints={5000} // This should be replaced with actual total points from state
         level={Math.min(Math.floor(khatmData.khatmCount / 3) + 1, 5)}
@@ -268,5 +279,14 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     borderBottomRightRadius: 16,
     overflow: 'hidden',
+  },
+  drawerOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    zIndex: 90,
   },
 });

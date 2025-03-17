@@ -13,21 +13,8 @@ install! 'cocoapods',
 
 prepare_react_native_project!
 
-# Add pre_install hook to fix ReactCommon module redefinition
-pre_install do |installer|
-  Pod::Installer::Xcode::TargetValidator.send(:define_method, :verify_no_static_framework_transitive_dependencies) {}
-  installer.pod_targets.each do |pod|
-    if pod.name.eql?('ReactCommon') || pod.name.eql?('React-Core')
-      def pod.build_type
-        Pod::BuildType.static_library
-      end
-    end
-  end
-end
-
 target 'BarakaatMakkiyyah' do
   use_expo_modules!
-  use_modular_headers!
 
   if ENV['EXPO_USE_COMMUNITY_AUTOLINKING'] == '1'
     config_command = ['node', '-e', "process.argv=['', '', 'config'];require('@react-native-community/cli').run()"];
@@ -58,9 +45,6 @@ target 'BarakaatMakkiyyah' do
   )
 
   post_install do |installer|
-    # Remove the duplicate modulemap file
-    system("rm -f /Headers/Public/ReactCommon/ReactCommon.modulemap")
-    
     react_native_post_install(
       installer,
       config[:reactNativePath],

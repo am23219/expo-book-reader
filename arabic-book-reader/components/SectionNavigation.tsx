@@ -82,7 +82,7 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Barakaat Makkiyyah</Text>
+        <Text style={styles.title}>Progress</Text>
         <TouchableOpacity 
           style={styles.closeButton} 
           onPress={onClose}
@@ -203,9 +203,6 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
             </LinearGradient>
           </TouchableOpacity>
         )}
-        <Text style={styles.footerText}>
-          Track your progress through the book
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -338,34 +335,6 @@ const styles = StyleSheet.create({
     borderTopColor: 'rgba(255, 255, 255, 0.1)',
     alignItems: 'center',
   },
-  footerText: {
-    fontSize: fonts.size.sm,
-    color: 'rgba(114, 187, 225, 0.7)',
-    fontFamily: fonts.primaryFamily,
-    marginTop: spacing.md,
-  },
-  completionDateContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: spacing.xs,
-    backgroundColor: 'rgba(76, 175, 80, 0.1)',
-    paddingHorizontal: spacing.xs,
-    paddingVertical: 2,
-    borderRadius: radius.sm,
-    alignSelf: 'flex-start',
-    borderLeftWidth: 2,
-    borderLeftColor: colors.success,
-  },
-  calendarIcon: {
-    marginRight: 4,
-    opacity: 0.9,
-  },
-  completionDateText: {
-    fontSize: fonts.size.xs,
-    color: colors.success,
-    fontFamily: fonts.primaryFamily,
-    fontWeight: '500',
-  },
   completeKhatmButton: {
     width: '90%',
     borderRadius: radius.xl,
@@ -393,6 +362,28 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     fontFamily: fonts.boldFamily,
     letterSpacing: 0.5,
+  },
+  completionDateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: spacing.xs,
+    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+    paddingHorizontal: spacing.xs,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    alignSelf: 'flex-start',
+    borderLeftWidth: 2,
+    borderLeftColor: colors.success,
+  },
+  calendarIcon: {
+    marginRight: 4,
+    opacity: 0.9,
+  },
+  completionDateText: {
+    fontSize: fonts.size.xs,
+    color: colors.success,
+    fontFamily: fonts.primaryFamily,
+    fontWeight: '500',
   },
 });
 

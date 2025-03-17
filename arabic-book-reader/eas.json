@@ -1,7 +1,8 @@
 {
   "cli": {
     "version": ">= 3.13.0",
-    "appVersionSource": "local"
+    "appVersionSource": "local",
+    "promptToConfigurePushNotifications": false
   },
   "build": {
     "development": {
@@ -11,7 +12,9 @@
     "preview": {
       "distribution": "internal"
     },
-    "production": {},
+    "production": {
+      "autoIncrement": true
+    },
     "development-simulator": {
       "developmentClient": true,
       "distribution": "internal",
