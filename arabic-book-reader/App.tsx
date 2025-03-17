@@ -4,9 +4,10 @@ import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, View, Text } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Font from 'expo-font';
-import { activateKeepAwake } from 'expo-keep-awake';
+import { activateKeepAwakeAsync } from 'expo-keep-awake';
 import BookPage from './pages/BookPage';
 import { colors } from './constants/theme';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 // Commenting out notification imports for now
 // import { 
 //   setNotificationHandler, 
@@ -32,7 +33,15 @@ export default function App() {
 
   // Activate keep awake to prevent screen dimming
   useEffect(() => {
-    activateKeepAwake();
+    const enableKeepAwake = async () => {
+      try {
+        await activateKeepAwakeAsync();
+      } catch (error) {
+        console.warn('Failed to activate keep awake:', error);
+      }
+    };
+    
+    enableKeepAwake();
     // No need for cleanup as we want to keep the screen awake throughout the app lifecycle
   }, []);
 
@@ -114,12 +123,14 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider>
-      <View style={styles.container} onLayout={onLayoutRootView}>
-        <StatusBar style="auto" />
-        <BookPage />
-      </View>
-    </SafeAreaProvider>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <SafeAreaProvider>
+        <View style={styles.container} onLayout={onLayoutRootView}>
+          <StatusBar style="auto" />
+          <BookPage />
+        </View>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

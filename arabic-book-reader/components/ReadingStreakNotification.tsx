@@ -577,7 +577,7 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
                 <Text style={[styles.title, isKhatm && styles.khatmTitle]}>{title}</Text>
                 {isKhatm && (
                   <LinearGradient 
-                    colors={[enhancedColors.gold.rich, enhancedColors.gold.vibrant] as const} 
+                    colors={['rgba(212, 175, 55, 0.8)', 'rgba(244, 196, 48, 0.8)'] as const} 
                     style={styles.badge}
                   >
                     <Text style={styles.badgeText}>Khatm</Text>
@@ -627,7 +627,7 @@ const ReadingStreakNotification: React.FC<ReadingStreakNotificationProps> = ({
           {isKhatm && (
             <Animated.View style={[styles.achievementBadge, { transform: [{ scale: badgeScaleAnim }, { rotate: spin }] }]}>
               <LinearGradient
-                colors={['#D4AF37', '#F4C430', '#D4AF37'] as const}
+                colors={['rgba(212, 175, 55, 0.9)', 'rgba(244, 196, 48, 0.9)', 'rgba(212, 175, 55, 0.9)'] as const}
                 style={styles.achievementBadgeInner}
               >
                 <Text style={styles.achievementIcon}>{getBadgeIcon('khatm', Math.min(completionNumber - 1, 4))}</Text>
@@ -974,13 +974,14 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.sm,
     marginLeft: spacing.xs,
+    opacity: 0.9,
   },
   badgeText: {
     color: colors.primary.white,
-    fontSize: fonts.size.xs,
-    fontWeight: '700',
+    fontSize: fonts.size.xs, // Use the existing smallest font size
+    fontWeight: '600',
     fontFamily: fonts.boldFamily,
-    letterSpacing: 0.3,
+    letterSpacing: 0.2,
   },
   quoteIcon: {
     opacity: 0.8,
@@ -996,29 +997,29 @@ const styles = StyleSheet.create({
   },
   achievementBadge: {
     alignSelf: 'center',
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+    width: 70,  // Reduce size from 80
+    height: 70, // Reduce size from 80
+    borderRadius: 35,
     marginBottom: spacing.lg,
-    ...shadows.medium,
+    ...shadows.small, // Use small shadows instead of medium
   },
   achievementBadgeInner: {
     width: '100%',
     height: '100%',
-    borderRadius: 40,
+    borderRadius: 35,
     alignItems: 'center',
     justifyContent: 'center',
   },
   achievementIcon: {
-    fontSize: 32,
+    fontSize: 28,
     marginBottom: spacing.xs / 2,
   },
   achievementCount: {
     fontSize: fonts.size.xs,
-    fontWeight: '700',
+    fontWeight: '600',
     color: colors.primary.white,
     fontFamily: fonts.boldFamily,
-    letterSpacing: 0.5,
+    letterSpacing: 0.3,
   },
   streakSection: {
     marginBottom: spacing.md,

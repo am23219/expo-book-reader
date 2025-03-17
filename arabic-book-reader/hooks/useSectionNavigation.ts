@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Section } from '../models/Section';
 import { loadSections, saveSections, loadCurrentPage, saveCurrentPage } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
+import useCompletedSections from './useCompletedSections';
 
 export interface SectionNavigationData {
   sections: Section[];
@@ -30,11 +32,16 @@ export const useSectionNavigation = (
   onSectionComplete: (section: Section) => Promise<void>
 ): [SectionNavigationData, SectionNavigationActions] => {
   const [sections, setSections] = useState<Section[]>(initialSections);
-  const [currentPage, setCurrentPage] = useState(1);
+  const [currentPage, setCurrentPage] = useState<number>(1);
   const [currentSection, setCurrentSection] = useState<Section>(initialSections[0]);
   const [isSectionDrawerOpen, setIsSectionDrawerOpen] = useState(false);
   
   const sectionDrawerAnim = useRef(new Animated.Value(-280)).current;
+  const lastVisitedPages = useRef<number[]>([]);
+  const isDirectNavigation = useRef(false);
+  
+  // Add the completed sections hook
+  const [_, addCompletedSection] = useCompletedSections();
   
   // Load saved data on component mount
   useEffect(() => {
@@ -141,11 +148,10 @@ export const useSectionNavigation = (
   // State for tracking page history and navigation type
   const [previousPage, setPreviousPage] = useState<number | null>(null);
   const [secondPreviousPage, setSecondPreviousPage] = useState<number | null>(null);
-  const [isDirectNavigation, setIsDirectNavigation] = useState<boolean>(false);
   
   // Handle page changes with improved section detection
   const handlePageChange = (page: number) => {
-    console.log(`handlePageChange called with page: ${page}, isDirectNavigation: ${isDirectNavigation}`);
+    console.log(`handlePageChange called with page: ${page}, isDirectNavigation: ${isDirectNavigation.current}`);
     
     // Validate page number to prevent invalid values
     if (page < 1 || page > 150) {
@@ -168,11 +174,11 @@ export const useSectionNavigation = (
     }
     
     // Skip auto-completion logic if this is a direct navigation
-    if (isDirectNavigation) {
+    if (isDirectNavigation.current) {
       console.log('Direct navigation detected, skipping auto-completion logic');
       
       // Reset direct navigation flag after handling page change
-      setIsDirectNavigation(false);
+      isDirectNavigation.current = false;
       
       // Update previous pages for next comparison
       setSecondPreviousPage(previousPage);
@@ -204,7 +210,7 @@ export const useSectionNavigation = (
     
     // Special case: Check if user is naturally scrolling to the first page of the next manzil
     // This should mark the previous manzil as complete if it's not already
-    if (previousPage !== null && !isDirectNavigation) {
+    if (previousPage !== null && !isDirectNavigation.current) {
       // Find the section for the previous page
       const previousSection = findSectionByPage(sections, previousPage);
       
@@ -242,7 +248,7 @@ export const useSectionNavigation = (
     
     // Special case for natural scrolling pattern: 3rd last page -> 2nd last page -> last page of manzil
     // Example: In manzil 1, scrolling from page 20 -> 21 -> 22 (which is also the first page of manzil 2)
-    if (previousPage !== null && secondPreviousPage !== null && !isDirectNavigation) {
+    if (previousPage !== null && secondPreviousPage !== null && !isDirectNavigation.current) {
       // Find the sections for the current and previous pages
       const currentSection = findSectionByPage(sections, page);
       const previousSection = findSectionByPage(sections, previousPage);
@@ -301,7 +307,7 @@ export const useSectionNavigation = (
     console.log(`Direct navigation to section: ${section.title}`);
     
     // Set direct navigation flag to prevent auto-completion of previous manzil
-    setIsDirectNavigation(true);
+    isDirectNavigation.current = true;
     
     // Find the previous section if there was a previous page
     if (previousPage !== null) {
@@ -337,6 +343,13 @@ export const useSectionNavigation = (
     setSections(updatedSections);
     saveSections(updatedSections);
     
+    // Save to completed sections for calendar view
+    await addCompletedSection({
+      ...section,
+      isCompleted: true,
+      completionDate
+    });
+    
     // Call the onSectionComplete callback
     await onSectionComplete(section);
   };
@@ -346,25 +359,32 @@ export const useSectionNavigation = (
     const section = sections.find(s => s.id === sectionId);
     const wasCompleted = section?.isCompleted || false;
     
-    const updatedSections = sections.map(section => 
-      section.id === sectionId 
+    if (!section) return;
+    
+    const now = new Date();
+    
+    const updatedSections = sections.map(s => 
+      s.id === sectionId 
         ? { 
-            ...section, 
-            isCompleted: !section.isCompleted,
+            ...s, 
+            isCompleted: !s.isCompleted,
             // Clear completionDate if toggling from completed to incomplete
-            completionDate: !section.isCompleted ? new Date() : undefined
+            completionDate: !s.isCompleted ? now : undefined
           } 
-        : section
+        : s
     );
+    
+    // If toggling to completed, add to completed sections for calendar
+    if (!wasCompleted) {
+      addCompletedSection({
+        ...section,
+        isCompleted: true,
+        completionDate: now
+      });
+    }
     
     setSections(updatedSections);
     saveSections(updatedSections);
-    
-    // If section was just completed (not uncompleted)
-    if (!wasCompleted && section) {
-      // Celebrate manzil completion
-      handleSectionCompletion(section);
-    }
   };
   
   // Toggle section drawer

@@ -38,17 +38,17 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
   };
   
   const handlePrevPage = () => {
-    if (currentPage > 1) {
+    if (currentPage < MAX_PAGE) {
       animateButton(prevButtonScale);
-      onPageChange(currentPage - 1);
+      onPageChange(currentPage + 1);
     }
   };
 
   const handleNextPage = () => {
     // Use the maximum page determined from the model
-    if (currentPage < MAX_PAGE) {
+    if (currentPage > 1) {
       animateButton(nextButtonScale);
-      onPageChange(currentPage + 1);
+      onPageChange(currentPage - 1);
     }
   };
 
@@ -83,10 +83,10 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
                   <View style={styles.pageNavigationInner}>
                     <TouchableOpacity
                       style={[styles.pageButton, currentPage <= 1 && styles.disabledButton]}
-                      onPress={handlePrevPage}
+                      onPress={handleNextPage}
                       disabled={currentPage <= 1}
                       activeOpacity={0.7}
-                      accessibilityLabel="Previous page"
+                      accessibilityLabel="Next page (go to previous page number)"
                       accessibilityRole="button"
                       accessibilityState={{ disabled: currentPage <= 1 }}
                     >
@@ -102,10 +102,10 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
                     
                     <TouchableOpacity
                       style={[styles.pageButton, currentPage >= MAX_PAGE && styles.disabledButton]}
-                      onPress={handleNextPage}
+                      onPress={handlePrevPage}
                       disabled={currentPage >= MAX_PAGE}
                       activeOpacity={0.7}
-                      accessibilityLabel="Next page"
+                      accessibilityLabel="Previous page (go to next page number)"
                       accessibilityRole="button"
                       accessibilityState={{ disabled: currentPage >= MAX_PAGE }}
                     >
@@ -125,10 +125,10 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
         <Animated.View style={{ transform: [{ scale: prevButtonScale }] }}>
           <TouchableOpacity 
             style={[styles.navButton, currentPage <= 1 && styles.disabledButton]} 
-            onPress={handlePrevPage}
+            onPress={handleNextPage}
             disabled={currentPage <= 1}
             activeOpacity={0.7}
-            accessibilityLabel="Previous page"
+            accessibilityLabel="Next page (go to previous page number)"
             accessibilityRole="button"
             accessibilityState={{ disabled: currentPage <= 1 }}
           >
@@ -146,10 +146,10 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
         <Animated.View style={{ transform: [{ scale: nextButtonScale }] }}>
           <TouchableOpacity 
             style={[styles.navButton, currentPage >= MAX_PAGE && styles.disabledButton]} 
-            onPress={handleNextPage}
+            onPress={handlePrevPage}
             disabled={currentPage >= MAX_PAGE}
             activeOpacity={0.7}
-            accessibilityLabel="Next page"
+            accessibilityLabel="Previous page (go to next page number)"
             accessibilityRole="button"
             accessibilityState={{ disabled: currentPage >= MAX_PAGE }}
           >
