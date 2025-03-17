@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Easing } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, StyleSheet, Animated, Easing, Modal, TouchableOpacity, Pressable } from 'react-native';
 import { colors, fonts, spacing, radius } from '../../constants/theme';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -48,6 +48,8 @@ const ReadingStreakIndicator: React.FC<ReadingStreakIndicatorProps> = ({
   onPress
 }) => {
   console.log("ReadingStreakIndicator rendered");
+  
+  const [modalVisible, setModalVisible] = useState(false);
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -126,9 +128,20 @@ const ReadingStreakIndicator: React.FC<ReadingStreakIndicatorProps> = ({
     });
   }, []);
 
+  const handlePress = () => {
+    setModalVisible(true);
+    if (onPress) {
+      onPress();
+    }
+  };
+
   return (
     <View style={styles.wrapper}>
-      <View style={[styles.container, styles.nonInteractive]}>
+      <TouchableOpacity 
+        style={styles.container}
+        onPress={handlePress}
+        activeOpacity={0.7}
+      >
         <View style={styles.streakRow}>
           <Animated.View style={[
             styles.streakBadgeContainer,
@@ -206,7 +219,48 @@ const ReadingStreakIndicator: React.FC<ReadingStreakIndicatorProps> = ({
             );
           })}
         </View>
-      </View>
+      </TouchableOpacity>
+
+      <Modal
+        animationType="fade"
+        transparent={true}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}
+      >
+        <Pressable 
+          style={styles.modalOverlay} 
+          onPress={() => setModalVisible(false)}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Your Reading Streak</Text>
+              <TouchableOpacity onPress={() => setModalVisible(false)}>
+                <MaterialCommunityIcons name="close" size={24} color={colors.primary.white} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.modalBody}>
+              <View style={styles.streakInfoContainer}>
+                <MaterialCommunityIcons 
+                  name="fire" 
+                  size={32} 
+                  color={onStreak ? "#FFDC61" : colors.primary.white} 
+                />
+                <Text style={styles.streakInfoText}>
+                  {onStreak
+                    ? `You're on a ${currentStreak} day streak!`
+                    : `Your streak ended at ${currentStreak} days`
+                  }
+                </Text>
+              </View>
+              
+              <Text style={styles.streakDescription}>
+                Read every day to maintain your streak and build a consistent reading habit.
+              </Text>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -325,6 +379,56 @@ const styles = StyleSheet.create({
   },
   nonInteractive: {
     opacity: 0.9,
+  },
+  
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  modalContent: {
+    width: '85%',
+    backgroundColor: '#1A1E30',
+    borderRadius: radius.lg,
+    padding: spacing.lg,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  modalTitle: {
+    fontSize: fonts.size.lg,
+    fontFamily: fonts.boldFamily,
+    color: colors.primary.white,
+  },
+  modalBody: {
+    marginVertical: spacing.md,
+  },
+  streakInfoContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: spacing.md,
+  },
+  streakInfoText: {
+    fontSize: fonts.size.md,
+    color: colors.primary.white,
+    fontFamily: fonts.boldFamily,
+    marginLeft: spacing.sm,
+  },
+  streakDescription: {
+    fontSize: fonts.size.sm,
+    color: 'rgba(255, 255, 255, 0.85)',
+    fontFamily: fonts.primaryFamily,
+    lineHeight: 22,
   },
 });
 
