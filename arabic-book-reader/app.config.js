@@ -1,7 +1,7 @@
 module.exports = {
   name: "Barakaat Makkiyyah",
   slug: "arabic-book-reader",
-  version: "1.0.5",
+  version: "1.0.6",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
@@ -76,7 +76,7 @@ module.exports = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.honeysystems.barakaatmakiyyah",
-    buildNumber: "8",
+    buildNumber: "9",
     infoPlist: {
       UIBackgroundModes: ["remote-notification"],
       ITSAppUsesNonExemptEncryption: false
@@ -88,7 +88,7 @@ module.exports = {
       backgroundColor: "#ffffff"
     },
     package: "com.honeysystems.barakaatmakiyyah",
-    versionCode: 7,
+    versionCode: 8,
     permissions: ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
     jsEngine: "hermes"
   },

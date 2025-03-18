@@ -18,7 +18,7 @@ export interface SectionNavigationActions {
   handlePageChange: (page: number) => void;
   handleSectionPress: (section: Section) => void;
   handleSectionCompletion: (section: Section) => Promise<void>;
-  handleToggleComplete: (sectionId: number) => void;
+  handleToggleComplete: (sectionId: number) => Promise<void>;
   toggleSectionDrawer: () => void;
   findSectionByPage: (page: number) => Section;
   setSections: (sections: Section[]) => void;
@@ -355,7 +355,7 @@ export const useSectionNavigation = (
   };
   
   // Toggle section completion status
-  const handleToggleComplete = (sectionId: number) => {
+  const handleToggleComplete = async (sectionId: number) => {
     const section = sections.find(s => s.id === sectionId);
     const wasCompleted = section?.isCompleted || false;
     
@@ -376,11 +376,16 @@ export const useSectionNavigation = (
     
     // If toggling to completed, add to completed sections for calendar
     if (!wasCompleted) {
-      addCompletedSection({
+      await addCompletedSection({
         ...section,
         isCompleted: true,
         completionDate: now
       });
+      
+      // Call onSectionComplete to trigger modals for manzil completion
+      if (section.title.includes('Manzil')) {
+        await onSectionComplete(section);
+      }
     }
     
     setSections(updatedSections);

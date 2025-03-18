@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Section } from '../../models/Section';
 import { colors, fonts, spacing, radius, shadows } from '../../constants/theme';
 import { formatCompletionDate } from '../../utils/dateFormatters';
+import { LinearGradient } from 'expo-linear-gradient';
 
 interface SectionItemProps {
   section: Section;
@@ -26,23 +27,30 @@ const SectionItem: React.FC<SectionItemProps> = ({
 }) => {
   // Animation reference for completion effect
   const checkmarkOpacity = useRef(new Animated.Value(0)).current;
+  const checkScale = useRef(new Animated.Value(1)).current;
   
   // Handle the completion toggle with animation
   const handleToggleComplete = () => {
     if (!section.isCompleted) {
       // Animate when marking as complete
       Animated.sequence([
-        Animated.timing(checkmarkOpacity, {
+        Animated.timing(checkScale, {
+          toValue: 1.3,
+          duration: 200,
+          useNativeDriver: true
+        }),
+        Animated.timing(checkScale, {
           toValue: 1,
           duration: 300,
           useNativeDriver: true
-        }),
-        Animated.timing(checkmarkOpacity, {
-          toValue: 0.8,
-          duration: 200,
-          useNativeDriver: true
         })
       ]).start();
+      
+      Animated.timing(checkmarkOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true
+      }).start();
     }
     onToggleComplete();
   };
@@ -60,7 +68,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
           isCurrent && styles.currentSection
         ]}
         onPress={onPress}
-        activeOpacity={0.7}
+        activeOpacity={0.8}
         accessibilityLabel={`${section.title}, pages ${section.startPage} to ${section.endPage}${section.isCompleted ? ', completed' : ''}`}
         accessibilityRole="button"
         accessibilityState={{ 
@@ -68,6 +76,18 @@ const SectionItem: React.FC<SectionItemProps> = ({
           checked: section.isCompleted
         }}
       >
+        {/* Background gradient for current and completed sections */}
+        {(isCurrent || section.isCompleted) && (
+          <LinearGradient
+            colors={section.isCompleted ? 
+              ['rgba(105, 219, 124, 0.08)', 'rgba(105, 219, 124, 0.15)'] : 
+              ['rgba(114, 187, 225, 0.08)', 'rgba(114, 187, 225, 0.15)']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={styles.sectionGradient}
+          />
+        )}
+        
         <View style={styles.sectionInfo}>
           <Text style={[
             styles.sectionTitle,
@@ -89,7 +109,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
               <View style={styles.calendarIconWrapper}>
                 <Ionicons 
                   name="checkmark" 
-                  size={16} 
+                  size={12} 
                   color={colors.primary.white} 
                 />
               </View>
@@ -111,19 +131,26 @@ const SectionItem: React.FC<SectionItemProps> = ({
           accessibilityState={{ checked: section.isCompleted }}
         >
           {section.isCompleted ? (
-            <Animated.View>
-              <Ionicons
-                name="checkmark-circle"
-                size={30}
-                color={colors.success}
-              />
+            <Animated.View style={{
+              transform: [{ scale: checkScale }]
+            }}>
+              <LinearGradient
+                colors={['#4EC07A', '#55D085', '#69DB7C']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={styles.checkButtonGradient}
+              >
+                <Ionicons
+                  name="checkmark"
+                  size={18}
+                  color={colors.primary.white}
+                />
+              </LinearGradient>
             </Animated.View>
           ) : (
-            <Ionicons
-              name="ellipse-outline"
-              size={28}
-              color={'rgba(255, 255, 255, 0.5)'}
-            />
+            <View style={styles.emptyCheckButton}>
+              <View style={styles.emptyCheckInner} />
+            </View>
           )}
         </TouchableOpacity>
       </TouchableOpacity>
@@ -143,95 +170,129 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.lg,
-    borderRadius: radius.lg,
-    backgroundColor: 'rgba(255, 255, 255, 0.05)', // Slightly increased contrast
+    borderRadius: radius.xl,
+    backgroundColor: 'rgba(42, 45, 116, 0.1)',
     marginBottom: spacing.md,
+    position: 'relative',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: 'rgba(114, 187, 225, 0.1)',
     ...shadows.small,
+  },
+  sectionGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: radius.xl,
   },
   sectionDivider: {
     height: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.06)', // Slightly increased contrast
+    backgroundColor: 'rgba(114, 187, 225, 0.05)',
     marginVertical: spacing.xs,
     marginHorizontal: spacing.xl,
   },
   completedSection: {
-    backgroundColor: 'rgba(76, 175, 80, 0.08)', // Subtle green tint for completed
-    borderLeftWidth: 4, // Increased from 3
+    borderLeftWidth: 3,
     borderLeftColor: colors.success,
-    borderRadius: radius.lg,
-    ...shadows.medium, // Enhanced shadow for completed items
+    borderRadius: radius.xl,
+    ...shadows.success,
   },
   currentSection: {
-    backgroundColor: 'rgba(114, 187, 225, 0.1)', // Increased contrast
-    borderLeftWidth: 4, // Increased from 3
+    borderLeftWidth: 3,
     borderLeftColor: colors.primary.sky,
-    transform: [{ scale: 1.02 }], // Slightly more noticeable
-    ...shadows.medium,
+    transform: [{ scale: 1.02 }],
+    ...shadows.glow,
   },
   sectionInfo: {
     flex: 1,
     paddingRight: spacing.lg,
   },
   sectionTitle: {
-    fontSize: fonts.size.xl, // Increased from lg to xl
-    fontWeight: 'bold',
+    fontSize: fonts.size.lg,
+    fontWeight: '600',
     color: colors.primary.white,
     marginBottom: spacing.xs,
     fontFamily: fonts.boldFamily,
   },
   currentSectionText: {
     color: colors.primary.sky,
+    textShadowColor: 'rgba(114, 187, 225, 0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
   completedSectionText: {
-    color: '#8eda92', // Slightly more saturated green
+    color: colors.success,
   },
   pageRange: {
-    fontSize: fonts.size.lg, // Increased from md to lg
-    color: 'rgba(255, 255, 255, 0.8)', // Increased contrast
+    fontSize: fonts.size.md,
+    color: 'rgba(255, 255, 255, 0.8)',
     fontFamily: fonts.secondaryFamily,
-    marginBottom: spacing.md, // Increased from sm to md for better spacing
+    marginBottom: spacing.md,
   },
   currentPageRange: {
-    color: 'rgba(114, 187, 225, 0.95)', // Increased contrast
+    color: 'rgba(114, 187, 225, 0.95)',
   },
   completedPageRange: {
-    color: 'rgba(131, 221, 137, 0.9)', // Soft green text
+    color: 'rgba(105, 219, 124, 0.9)',
   },
   checkButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.08)', // Increased contrast
-    padding: spacing.sm,
-    borderRadius: radius.round,
-    width: 48, // Slightly larger
-    height: 48, // Slightly larger
+    padding: spacing.xs,
     justifyContent: 'center',
     alignItems: 'center',
+    width: 36,
+    height: 36,
   },
-  checkedButton: {
-    backgroundColor: 'rgba(76, 175, 80, 0.16)', // Increased contrast
+  checkButtonGradient: {
+    width: 32,
+    height: 32,
     borderRadius: radius.round,
+    justifyContent: 'center',
+    alignItems: 'center',
+    ...shadows.small,
+  },
+  emptyCheckButton: {
+    width: 32,
+    height: 32,
+    borderRadius: radius.round,
+    borderWidth: 2,
+    borderColor: 'rgba(114, 187, 225, 0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(42, 45, 116, 0.2)',
+  },
+  emptyCheckInner: {
+    width: 16,
+    height: 16,
+    borderRadius: radius.round,
+    backgroundColor: 'rgba(114, 187, 225, 0.2)',
   },
   completionDateContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(76, 175, 80, 0.16)', // Increased contrast
-    paddingVertical: spacing.xs,
-    paddingHorizontal: spacing.md, // Increased from sm to md
-    borderRadius: radius.md,
+    backgroundColor: 'rgba(105, 219, 124, 0.15)',
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: radius.round,
     alignSelf: 'flex-start',
-    maxWidth: '90%',
   },
   calendarIconWrapper: {
+    width: 16,
+    height: 16,
+    borderRadius: radius.round,
     backgroundColor: colors.success,
-    borderRadius: radius.sm,
-    padding: spacing.xs,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: spacing.sm,
   },
   completionDateText: {
-    fontSize: fonts.size.md, // Increased from sm to md
-    color: colors.primary.white,
+    color: colors.success,
+    fontSize: fonts.size.xs,
     fontFamily: fonts.primaryFamily,
-    opacity: 0.95,
-    fontStyle: 'italic',
+  },
+  checkedButton: {
+    backgroundColor: 'transparent',
   },
 });
 

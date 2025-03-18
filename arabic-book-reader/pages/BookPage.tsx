@@ -1,9 +1,18 @@
+/**
+ * BookPage.tsx
+ * 
+ * Main reading screen of the Barakaat Makkiyyah app that displays Quran content and handles user interaction.
+ * This component manages section navigation, reading progress, streak tracking, and khatm completion.
+ */
+
 import React, { useEffect } from 'react';
 import { StyleSheet, View, Alert, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+// -----------------------------
 // Components
+// -----------------------------
 import PageViewer from '../components/PageViewer';
 import SectionNavigation from '../components/SectionNavigation';
 import EnhancedPdfViewer from '../components/EnhancedPdfViewer';
@@ -11,7 +20,9 @@ import ReadingStreakNotification from '../components/ReadingStreakNotification';
 import Header from '../components/Header';
 import AudioModal from '../components/AudioModal';
 
+// -----------------------------
 // Hooks
+// -----------------------------
 import { useReadingStreak } from '../hooks/useReadingStreak';
 import { useKhatmCompletion } from '../hooks/useKhatmCompletion';
 import { useSectionNavigation } from '../hooks/useSectionNavigation';
@@ -19,16 +30,23 @@ import { useSectionNavigation } from '../hooks/useSectionNavigation';
 // import { useNotifications } from '../hooks/useNotifications';
 import { usePdfViewer } from '../hooks/usePdfViewer';
 
+// -----------------------------
 // Models and Utils
+// -----------------------------
 import { SECTIONS } from '../models/Section';
 import { clearAllData } from '../utils/storage';
 import { colors } from '../constants/theme';
 
+// -----------------------------
 // Screens
+// -----------------------------
 import ReminderSettingsScreen from './ReminderSettings';
 
 export default function BookPage() {
-  // Initialize hooks
+  // -----------------------------
+  // State & Hooks Initialization
+  // -----------------------------
+  // Reading streak and progress tracking
   const [streakData, updateReadingStreak] = useReadingStreak();
   const [khatmData, khatmActions] = useKhatmCompletion(streakData.currentStreak);
   // Commenting out notification functionality for now
@@ -42,8 +60,27 @@ export default function BookPage() {
       // Update reading streak
       await updateReadingStreak();
       
-      // Check if this completes a manzil
-      if (section.title.includes('Manzil')) {
+      // Check if all sections are completed after this one
+      const allSectionsCompleted = sectionData.sections.every(s => 
+        s.id === section.id || s.isCompleted
+      );
+      
+      if (allSectionsCompleted) {
+        // All sections are completed - trigger khatm completion
+        try {
+          // Complete khatm and get reset sections
+          const resetSections = await khatmActions.completeKhatm(sectionData.sections);
+          
+          // Update sections after a delay
+          setTimeout(() => {
+            sectionActions.setSections(resetSections);
+          }, 2000);
+        } catch (error) {
+          console.error('Error completing khatm:', error);
+          alert('An error occurred while completing khatm. Please try again.');
+        }
+      }
+      else if (section.title.includes('Manzil')) {
         console.log(`Manzil ${section.title} completed!`);
         
         // Extract manzil number from the title
@@ -74,6 +111,9 @@ export default function BookPage() {
     }
   );
   
+  // -----------------------------
+  // Effects
+  // -----------------------------
   // Save the current book title for the widget
   useEffect(() => {
     const saveCurrentBookTitle = async () => {
@@ -93,6 +133,9 @@ export default function BookPage() {
   //   notificationActions.initializeNotifications();
   // }, []);
   
+  // -----------------------------
+  // Event Handlers
+  // -----------------------------
   // Handle data reset and app refresh
   const handleReset = async () => {
     try {
@@ -121,37 +164,9 @@ export default function BookPage() {
     }
   };
   
-  // Handle complete khatm button press
-  const handleCompleteKhatm = () => {
-    Alert.alert(
-      "Complete Khatm",
-      "Are you sure you want to mark all sections as completed and finish this khatm?",
-      [
-        {
-          text: "Cancel",
-          style: "cancel"
-        },
-        {
-          text: "Complete",
-          onPress: async () => {
-            try {
-              // Complete khatm and get reset sections
-              const resetSections = await khatmActions.completeKhatm(sectionData.sections);
-              
-              // Update sections after a delay
-              setTimeout(() => {
-                sectionActions.setSections(resetSections);
-              }, 2000);
-            } catch (error) {
-              console.error('Error completing khatm:', error);
-              alert('An error occurred while completing khatm. Please try again.');
-            }
-          }
-        }
-      ]
-    );
-  };
-  
+  // -----------------------------
+  // Render UI
+  // -----------------------------
   return (
     <View style={styles.container}>
       <StatusBar style="light" />
@@ -188,14 +203,13 @@ export default function BookPage() {
         )}
       </View>
       
-      {/* Overlay to close drawer when tapping outside */}
+      {/* Navigation Drawer and Overlay */}
       {sectionData.isSectionDrawerOpen && (
         <TouchableWithoutFeedback onPress={sectionActions.toggleSectionDrawer}>
           <View style={styles.drawerOverlay} />
         </TouchableWithoutFeedback>
       )}
       
-      {/* Drawer Navigation */}
       <Animated.View 
         style={[
           styles.sectionDrawer,
@@ -209,11 +223,10 @@ export default function BookPage() {
           onToggleComplete={sectionActions.handleToggleComplete}
           onClose={sectionActions.toggleSectionDrawer}
           khatmCount={khatmData.khatmCount}
-          onCompleteKhatm={handleCompleteKhatm}
         />
       </Animated.View>
       
-      {/* Audio Modal */}
+      {/* Modals */}
       <AudioModal
         visible={pdfViewerState.isAudioModalVisible}
         onClose={pdfViewerActions.toggleAudioModal}
@@ -241,7 +254,7 @@ export default function BookPage() {
         level={Math.min(Math.floor(khatmData.khatmCount / 3) + 1, 5)}
       />
       
-      {/* Reminder Settings Modal */}
+      {/* Reminder Settings Modal - Currently disabled */}
       {/* Commenting out notification modal for now
       <Modal
         visible={notificationState.showReminderSettings}
@@ -259,6 +272,9 @@ export default function BookPage() {
   );
 }
 
+// -----------------------------
+// Styles
+// -----------------------------
 const styles = StyleSheet.create({
   container: {
     flex: 1,

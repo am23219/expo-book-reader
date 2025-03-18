@@ -221,20 +221,48 @@ export const useReadingStreak = (): [
 
   // Helper function to generate the past 7 days data for the streak component
   const getPast7Days = (history: Date[]): ReadingDay[] => {
-    const today = startOfDay(new Date());
-    const result = [];
-    
-    // Generate an array of the past 7 days
-    for (let i = 6; i >= 0; i--) {
-      const date = startOfDay(addDays(today, -i));
-      const didRead = history.some(readDate => 
-        isSameDay(new Date(readDate), date)
-      );
+    try {
+      const today = startOfDay(new Date());
+      const result: ReadingDay[] = [];
       
-      result.push({ date, didRead });
+      // Generate an array of the past 7 days
+      for (let i = 6; i >= 0; i--) {
+        const date = startOfDay(addDays(today, -i));
+        
+        // Ensure history items are valid dates
+        const safeHistory = history.filter(item => item instanceof Date || (typeof item === 'string' && !isNaN(new Date(item).getTime())));
+        
+        // Convert history items to Date objects if they're strings
+        const normalizedHistory = safeHistory.map(item => 
+          item instanceof Date ? item : new Date(item)
+        );
+        
+        const didRead = normalizedHistory.some(readDate => 
+          isSameDay(readDate, date)
+        );
+        
+        result.push({ 
+          date, // Ensure this is a proper Date object
+          didRead 
+        });
+      }
+      
+      console.log('getPast7Days result:', result.map(d => ({
+        date: d.date.toString(),
+        isDate: d.date instanceof Date,
+        didRead: d.didRead
+      })));
+      
+      return result;
+    } catch (error) {
+      console.error('Error in getPast7Days:', error);
+      // Return safe fallback with current date
+      const today = new Date();
+      return Array.from({ length: 7 }, (_, i) => ({
+        date: addDays(today, -i),
+        didRead: false
+      }));
     }
-    
-    return result;
   };
 
   return [

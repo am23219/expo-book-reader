@@ -35,6 +35,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const [isNavigating, setIsNavigating] = useState(false);
   const [showZoomIndicator, setShowZoomIndicator] = useState(false);
   const zoomIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Animation values for button press effects
   const prevButtonScale = React.useRef(new Animated.Value(1)).current;
@@ -73,8 +74,13 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       animateButton(nextButtonScale);
       onPageChange(currentPage + 1);
       
+      // Clear any existing timeout
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+      
       // Reset navigation lock after animation completes
-      setTimeout(() => {
+      navigationTimeoutRef.current = setTimeout(() => {
         setIsNavigating(false);
       }, 300);
     }
@@ -86,8 +92,13 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       animateButton(prevButtonScale);
       onPageChange(currentPage - 1);
       
+      // Clear any existing timeout
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+      
       // Reset navigation lock after animation completes
-      setTimeout(() => {
+      navigationTimeoutRef.current = setTimeout(() => {
         setIsNavigating(false);
       }, 300);
     }
@@ -164,11 +175,14 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   // Combine the base scale with the gesture scale
   const combinedScale = Animated.multiply(baseScale, scale);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (zoomIndicatorTimeoutRef.current) {
         clearTimeout(zoomIndicatorTimeoutRef.current);
+      }
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
       }
     };
   }, []);
@@ -250,16 +264,16 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
                 currentPage >= totalPages ? styles.navButtonDisabled : styles.navButtonLeft
               ]}
               onPress={handleNextPage}
-              disabled={currentPage >= totalPages}
+              disabled={currentPage >= totalPages || isNavigating}
               activeOpacity={0.7}
               accessibilityLabel="Next page"
               accessibilityRole="button"
-              accessibilityState={{ disabled: currentPage >= totalPages }}
+              accessibilityState={{ disabled: currentPage >= totalPages || isNavigating }}
             >
               <Ionicons 
                 name="chevron-back" 
                 size={22} 
-                color={currentPage >= totalPages ? "transparent" : colors.primary.deep} 
+                color={currentPage >= totalPages ? "transparent" : "#505391"} 
               />
             </TouchableOpacity>
           </Animated.View>
@@ -273,14 +287,16 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
                   styles.navButtonRight
                 ]}
                 onPress={handlePrevPage}
+                disabled={isNavigating}
                 activeOpacity={0.7}
                 accessibilityLabel="Previous page"
                 accessibilityRole="button"
+                accessibilityState={{ disabled: isNavigating }}
               >
                 <Ionicons 
                   name="chevron-forward" 
                   size={22} 
-                  color={colors.primary.deep} 
+                  color="#505391" 
                 />
               </TouchableOpacity>
             </Animated.View>
@@ -366,10 +382,12 @@ const styles = StyleSheet.create({
     alignItems: "center" 
   },
   pageIndicatorInner: {
-    backgroundColor: '#000000',
+    backgroundColor: '#505391',
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.xs,
     borderRadius: radius.lg,
+    minWidth: 100,
+    alignItems: 'center',
   },
   pageIndicatorText: { 
     fontSize: fonts.size.sm, 
