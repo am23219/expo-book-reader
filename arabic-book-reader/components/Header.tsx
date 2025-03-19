@@ -37,7 +37,13 @@ const Header: React.FC<HeaderProps> = ({
   
   // Calculate progress within the current section/manzil
   const totalPagesInSection = endPage - startPage + 1;
-  const pagesReadInSection = currentPage - startPage + 1;
+  
+  // Handle page display for boundary pages
+  // If current page is the start page of this section, and it's also the end page
+  // of the previous section, always show it as page 1
+  const displayPage = currentPage === startPage ? 1 : (currentPage - startPage + 1);
+  const pagesReadInSection = displayPage;
+  
   const sectionProgress = totalPagesInSection > 0 ? pagesReadInSection / totalPagesInSection : 0;
   
   // Extract manzil number from subtitle if provided, or determine it from page range
@@ -89,8 +95,8 @@ const Header: React.FC<HeaderProps> = ({
               <View style={styles.divider} />
               
               <View style={styles.manzilContainer}>
-                <Ionicons name="bookmark" size={14} color={colors.primary.sky} style={styles.manzilIcon} />
-                <Text style={styles.manzilText}>Manzil {getManzilNumber()}</Text>
+                <Ionicons name="book" size={14} color={colors.primary.sky} style={styles.manzilIcon} />
+                <Text style={styles.manzilText}>Manzil <Text style={styles.manzilNumber}>{getManzilNumber()}</Text></Text>
               </View>
             </View>
           </View>
@@ -110,7 +116,16 @@ const Header: React.FC<HeaderProps> = ({
               }) 
             }
           ]} 
-        />
+        >
+          <View style={styles.progressInner}>
+            <LinearGradient
+              colors={[colors.primary.sky, colors.secondary.lightCyan]}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+              style={styles.progressGradient}
+            />
+          </View>
+        </Animated.View>
         <View style={styles.progressPageInfo}>
           <Text style={styles.progressPageText}>{pagesReadInSection}/{totalPagesInSection}</Text>
         </View>
@@ -224,6 +239,10 @@ const styles = StyleSheet.create({
     fontSize: fonts.size.sm,
     fontFamily: fonts.primaryFamily,
   },
+  manzilNumber: {
+    fontFamily: fonts.boldFamily,
+    fontWeight: 'bold',
+  },
   progressContainer: {
     height: 6,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -240,8 +259,29 @@ const styles = StyleSheet.create({
   },
   progressBar: {
     height: '100%',
-    backgroundColor: colors.primary.sky,
     borderRadius: radius.round,
+    overflow: 'hidden',
+  },
+  progressInner: {
+    width: '100%',
+    height: '100%',
+    borderRadius: radius.round,
+    overflow: 'hidden',
+  },
+  progressGradient: {
+    width: '100%',
+    height: '100%',
+    ...Platform.select({
+      ios: {
+        shadowColor: colors.primary.sky,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 1,
+        shadowRadius: 4,
+      },
+      android: {
+        elevation: 4,
+      },
+    }),
   },
   progressPageInfo: {
     position: 'absolute',

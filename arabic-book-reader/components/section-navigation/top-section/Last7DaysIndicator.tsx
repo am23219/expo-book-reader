@@ -1,12 +1,12 @@
 import React from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, Animated } from 'react-native';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { colors, fonts, radius, shadows } from '../../../constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 
 interface ReadingDay {
   date: Date;
   didRead: boolean;
+  completedSections?: number; // Added: number of sections completed that day
 }
 
 interface Last7DaysIndicatorProps {
@@ -41,10 +41,13 @@ const formatDate = (date: Date): string => {
 const Last7DaysIndicator: React.FC<Last7DaysIndicatorProps> = ({ readingDays }) => {
   const { width } = useWindowDimensions();
   
-  // More compact sizing for better responsiveness
-  const maximumSpace = width - 60; // Allow space for margins
-  const circleSize = Math.min(Math.floor(maximumSpace / 10), 22); // Reduced size
-  const glowSize = circleSize * 1.5; // Increased glow proportionally
+  // Horizontal padding for the container
+  const horizontalPadding = 16;
+  
+  // Improved responsive sizing calculation
+  const containerWidth = Math.min(width - 60, 400); // Cap max width
+  const circleSize = Math.min(Math.floor((containerWidth - (horizontalPadding * 2)) / 7), 32); // Account for padding
+  const glowSize = circleSize * 1.2; // Reduced glow proportion
   
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -60,26 +63,37 @@ const Last7DaysIndicator: React.FC<Last7DaysIndicatorProps> = ({ readingDays }) 
 
   return (
     <View style={styles.container}>
-      <View style={styles.daysContainer}>
+      <View style={[
+        styles.daysContainer, 
+        { 
+          width: containerWidth,
+          paddingHorizontal: horizontalPadding 
+        }
+      ]}>
         {last7Days.map((date, index) => {
           const isToday = isSameDay(date, today);
           
-          // Check if this day exists in readingDays and was read
-          const didRead = formattedReadingDays.some(day => 
-            isSameDay(day.date, date) && day.didRead
+          // Find the matching reading day
+          const matchingDay = formattedReadingDays.find(day => 
+            isSameDay(day.date, date)
           );
           
-          // Circle rendering
+          const didRead = matchingDay?.didRead || false;
+          const sectionsCompleted = matchingDay?.completedSections || 0;
+          
+          const hasActivity = didRead || sectionsCompleted > 0;
+          
           return (
-            <View key={index} style={[styles.dayItem, { width: circleSize * 1.2 }]}>
+            <View key={index} style={styles.dayItem}>
               <Text style={[
                 styles.dayLabel,
                 isToday && styles.todayLabel,
               ]}>
                 {formatDate(date)}
               </Text>
+              
               <View style={[styles.dayCircleContainer, { width: circleSize, height: circleSize }]}>
-                {didRead && (
+                {hasActivity && (
                   <View
                     style={[
                       styles.glowEffect,
@@ -94,15 +108,17 @@ const Last7DaysIndicator: React.FC<Last7DaysIndicatorProps> = ({ readingDays }) 
                     ]}
                   />
                 )}
-                {didRead ? (
-                  <View style={[
-                    styles.activeDayCircleContainer,
-                    {
-                      width: circleSize,
-                      height: circleSize,
-                      borderRadius: circleSize / 2,
-                    }
-                  ]}>
+                
+                <View style={[
+                  styles.dayCircle,
+                  isToday && styles.todayCircle,
+                  {
+                    width: circleSize,
+                    height: circleSize,
+                    borderRadius: circleSize / 2,
+                  }
+                ]}>
+                  {hasActivity ? (
                     <LinearGradient
                       colors={['#2A2D74', '#72BBE1', '#89C8E9']}
                       start={{ x: 0, y: 0 }}
@@ -110,32 +126,20 @@ const Last7DaysIndicator: React.FC<Last7DaysIndicatorProps> = ({ readingDays }) 
                       style={[
                         styles.activeGradient,
                         {
-                          width: circleSize,
-                          height: circleSize,
-                          borderRadius: circleSize / 2,
+                          width: circleSize - 2,
+                          height: circleSize - 2,
+                          borderRadius: (circleSize - 2) / 2,
                         },
                       ]}
                     >
-                      <View style={styles.checkCircle}>
-                        <MaterialCommunityIcons
-                          name="check"
-                          size={circleSize * 0.4}
-                          color="#FFFFFF"
-                        />
-                      </View>
+                      <Text style={styles.sectionCountText}>
+                        {sectionsCompleted > 0 ? sectionsCompleted : '•'}
+                      </Text>
                     </LinearGradient>
-                  </View>
-                ) : (
-                  <View style={[
-                    styles.dayCircle,
-                    isToday && styles.todayCircle,
-                    {
-                      width: circleSize,
-                      height: circleSize,
-                      borderRadius: circleSize / 2,
-                    }
-                  ]} />
-                )}
+                  ) : (
+                    <View style={styles.emptyCircle} />
+                  )}
+                </View>
               </View>
             </View>
           );
@@ -149,11 +153,11 @@ const styles = StyleSheet.create({
   container: {
     width: '100%',
     marginBottom: 12,
+    alignItems: 'center', // Center the days container in the parent
   },
   daysContainer: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    width: '100%',
   },
   dayItem: {
     alignItems: 'center',
@@ -181,10 +185,7 @@ const styles = StyleSheet.create({
   glowEffect: {
     position: 'absolute',
     zIndex: 1,
-    // Lower overall opacity from 0.8 => 0.3 or 0.4
     opacity: 0.4,
-    // Remove or reduce the “glow” shadow
-    // ...shadows.glow,
     shadowColor: 'rgba(114, 187, 225, 1)',
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.15,
@@ -198,26 +199,22 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.12)',
     zIndex: 2,
   },
-  activeDayCircleContainer: {
-    zIndex: 2,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: 'rgba(255, 255, 255, 0.5)',
-  },
   activeGradient: {
     alignItems: 'center',
     justifyContent: 'center',
     ...shadows.small,
   },
-  checkCircle: {
-    width: '70%',
-    height: '70%',
+  sectionCountText: {
+    color: '#FFFFFF',
+    fontSize: fonts.size.md,
+    fontWeight: 'bold',
+    textAlign: 'center',
+  },
+  emptyCircle: {
+    width: '80%',
+    height: '80%',
     borderRadius: 100,
-    backgroundColor: 'rgba(114, 187, 225, 0.3)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    backgroundColor: 'transparent',
   },
   todayCircle: {
     borderColor: colors.primary.sky,

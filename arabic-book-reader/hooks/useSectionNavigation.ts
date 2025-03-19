@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Section } from '../models/Section';
-import { loadSections, saveSections, loadCurrentPage, saveCurrentPage } from '../utils/storage';
+import { loadSections, saveSections, loadCurrentPage, saveCurrentPage, saveLastViewedPage, getLastViewedPage } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
 import useCompletedSections from './useCompletedSections';
 
@@ -17,7 +17,7 @@ export interface SectionNavigationData {
 export interface SectionNavigationActions {
   handlePageChange: (page: number) => void;
   handleSectionPress: (section: Section) => void;
-  handleSectionCompletion: (section: Section) => Promise<void>;
+  handleSectionCompletion: (section: Section, completionMethod?: 'automatic' | 'manual') => Promise<void>;
   handleToggleComplete: (sectionId: number) => Promise<void>;
   toggleSectionDrawer: () => void;
   findSectionByPage: (page: number) => Section;
@@ -29,7 +29,7 @@ export interface SectionNavigationActions {
  */
 export const useSectionNavigation = (
   initialSections: Section[],
-  onSectionComplete: (section: Section) => Promise<void>
+  onSectionComplete: (section: Section, completionMethod?: 'automatic' | 'manual') => Promise<void>
 ): [SectionNavigationData, SectionNavigationActions] => {
   const [sections, setSections] = useState<Section[]>(initialSections);
   const [currentPage, setCurrentPage] = useState<number>(1);
@@ -74,46 +74,23 @@ export const useSectionNavigation = (
   const findSectionByPage = (sectionList: Section[], page: number): Section => {
     console.log(`Finding section for page ${page}`);
     
-    // Special case for boundary pages (like page 22 which is both end of Manzil 1 and start of Manzil 2)
-    // If we're coming from a lower page number, we want to consider it part of the previous manzil
-    // If we're coming from a higher page number, we want to consider it part of the next manzil
-    if (previousPage !== null) {
-      // Check if this page is a boundary page (both end of one section and start of another)
-      const isBoundaryPage = sectionList.some((section, index) => {
-        // Skip the last section as it can't be a boundary with a next section
-        if (index === sectionList.length - 1) return false;
-        
-        // Check if this page is the end of current section and start of next section
-        const nextSection = sectionList[index + 1];
-        return page === section.endPage && page === nextSection.startPage;
-      });
+    // First check for boundary pages (pages that are both end of one section and start of another)
+    for (let i = 0; i < sectionList.length - 1; i++) {
+      const currentSection = sectionList[i];
+      const nextSection = sectionList[i + 1];
       
-      if (isBoundaryPage) {
-        console.log(`Page ${page} is a boundary page between two manzils`);
+      // If this page is both the end of current section and start of next section
+      if (page === currentSection.endPage && page === nextSection.startPage) {
+        console.log(`Page ${page} is a boundary page between ${currentSection.title} and ${nextSection.title}`);
         
-        // If we're scrolling forward (from a lower page number)
-        if (previousPage < page) {
-          // Find the section where this page is the end page
-          const section = sectionList.find(s => s.endPage === page);
-          if (section) {
-            console.log(`Coming from lower page ${previousPage}, treating page ${page} as part of ${section.title}`);
-            return section;
-          }
-        } 
-        // If we're scrolling backward (from a higher page number)
-        else if (previousPage > page) {
-          // Find the section where this page is the start page
-          const section = sectionList.find(s => s.startPage === page);
-          if (section) {
-            console.log(`Coming from higher page ${previousPage}, treating page ${page} as part of ${section.title}`);
-            return section;
-          }
-        }
+        // For boundary pages, ALWAYS prefer the next section
+        // This ensures pages like 22 are shown as "page 1 of Manzil 2" instead of "page 22 of Manzil 1"
+        console.log(`Treating page ${page} as part of ${nextSection.title}`);
+        return nextSection;
       }
     }
     
-    // First check if this page is the startPage of any section
-    // If it is, prioritize the section that's starting
+    // If not a boundary page, first check if this page is the startPage of any section
     for (const section of sectionList) {
       if (page === section.startPage) {
         console.log(`Page ${page} is the start page of ${section.title}`);
@@ -123,12 +100,13 @@ export const useSectionNavigation = (
     
     // If not a start page, then check which section's range contains this page
     for (const section of sectionList) {
-      // Check if page is within this section's range (inclusive of start, exclusive of end except for the last section)
+      // For the last section, include both startPage and endPage
       if (section.id === sectionList.length && page >= section.startPage && page <= section.endPage) {
-        // Special case for the last section - include the end page
         console.log(`Page ${page} is within range of last section ${section.title} (${section.startPage}-${section.endPage})`);
         return section;
-      } else if (page >= section.startPage && page < section.endPage) {
+      } 
+      // For all other sections, include startPage but exclude endPage (since endPage is the startPage of next section)
+      else if (page >= section.startPage && page < section.endPage) {
         console.log(`Page ${page} is within range of ${section.title} (${section.startPage}-${section.endPage})`);
         return section;
       }
@@ -167,10 +145,37 @@ export const useSectionNavigation = (
     setCurrentPage(page);
     saveCurrentPage(page);
     
+    // Save this as the last viewed page for this section
+    saveLastViewedPage(section.id, page);
+    
     // Always update the section if it's different
     if (section.id !== currentSection.id) {
       console.log(`Section changed from ${currentSection.title} to ${section.title}`);
       setCurrentSection(section);
+    }
+    
+    // Check if this is the last page of the last section
+    const isLastSection = section.id === sections.length;
+    const isLastPage = page === section.endPage;
+    
+    // If we've reached the end of the last section, check if all other sections are completed
+    if (isLastSection && isLastPage) {
+      console.log('Reached the last page of the last section');
+      
+      // Check if all other sections are already marked as completed
+      const allOtherSectionsCompleted = sections.slice(0, -1).every(s => s.isCompleted);
+      
+      if (allOtherSectionsCompleted) {
+        console.log('All sections are completed! Triggering khatm completion');
+        
+        // Mark the last section as completed
+        if (!section.isCompleted) {
+          handleSectionCompletion(section, 'automatic').then(() => {
+            // Trigger the onSectionComplete callback which will show the khatm completion notification
+            onSectionComplete(section, 'automatic');
+          });
+        }
+      }
     }
     
     // Skip auto-completion logic if this is a direct navigation
@@ -205,7 +210,7 @@ export const useSectionNavigation = (
       }, 400);
       
       // Mark section as completed
-      handleSectionCompletion(section);
+      handleSectionCompletion(section, 'automatic');
     }
     
     // Special case: Check if user is naturally scrolling to the first page of the next manzil
@@ -242,7 +247,7 @@ export const useSectionNavigation = (
         }, 400);
         
         // Mark previous section as completed
-        handleSectionCompletion(previousSection);
+        handleSectionCompletion(previousSection, 'automatic');
       }
     }
     
@@ -293,7 +298,7 @@ export const useSectionNavigation = (
         }, 400);
         
         // Mark previous section as completed
-        handleSectionCompletion(previousSection);
+        handleSectionCompletion(previousSection, 'automatic');
       }
     }
     
@@ -315,28 +320,65 @@ export const useSectionNavigation = (
       console.log(`Previous section was: ${previousSection.title}`);
     }
     
-    // Update state
+    // Always explicitly set the current section first to ensure proper context
     setCurrentSection(section);
-    setCurrentPage(section.startPage);
     
-    // Update previous page tracking to avoid false "natural scrolling" detection
-    // This ensures we don't trigger the auto-completion logic when directly navigating
-    setSecondPreviousPage(null);
-    setPreviousPage(section.startPage);
-    
-    toggleSectionDrawer(); // Close drawer after selection
+    // Check if the section is completed
+    if (section.isCompleted) {
+      console.log(`Section ${section.title} is completed. Navigating to start page: ${section.startPage}`);
+      // For completed sections, always go to start page
+      setCurrentPage(section.startPage);
+      setSecondPreviousPage(null);
+      setPreviousPage(section.startPage);
+      // Close drawer immediately to avoid timing issues
+      toggleSectionDrawer();
+    } else {
+      // Only get last viewed page for incomplete sections
+      getLastViewedPage(section).then(lastViewedPage => {
+        console.log(`Retrieved last viewed page for ${section.title}: ${lastViewedPage}`);
+        
+        // Validate that the retrieved page actually belongs to this section
+        if (lastViewedPage < section.startPage || lastViewedPage > section.endPage) {
+          console.log(`Last viewed page ${lastViewedPage} is outside section range ${section.startPage}-${section.endPage}. Using start page.`);
+          lastViewedPage = section.startPage;
+        }
+        
+        // If the last viewed page is the last page of the section, go to start page instead
+        if (lastViewedPage === section.endPage) {
+          console.log(`Last viewed page is the end page. Going to start page instead.`);
+          setCurrentPage(section.startPage);
+          setSecondPreviousPage(null);
+          setPreviousPage(section.startPage);
+        } else {
+          // Otherwise navigate to the last viewed page
+          setCurrentPage(lastViewedPage);
+          setSecondPreviousPage(null);
+          setPreviousPage(lastViewedPage);
+        }
+      });
+      // Close drawer immediately to avoid timing issues
+      toggleSectionDrawer();
+    }
   };
   
   // Handle section completion
-  const handleSectionCompletion = async (section: Section) => {
-    console.log(`Section ${section.title} completed!`);
+  const handleSectionCompletion = async (section: Section, completionMethod?: 'automatic' | 'manual') => {
+    console.log(`Section ${section.title} completed! Method: ${completionMethod || 'automatic'}`);
+    
+    // Default to automatic if not specified
+    const method = completionMethod || 'automatic';
     
     // Get current date for completion timestamp
     const completionDate = new Date();
     
-    // Update sections with completion date
+    // Update sections with completion date and method
     const updatedSections = sections.map(s => 
-      s.id === section.id ? { ...s, isCompleted: true, completionDate } : s
+      s.id === section.id ? { 
+        ...s, 
+        isCompleted: true, 
+        completionDate,
+        completionMethod: method
+      } : s
     );
     
     // Save to storage
@@ -347,11 +389,12 @@ export const useSectionNavigation = (
     await addCompletedSection({
       ...section,
       isCompleted: true,
-      completionDate
+      completionDate,
+      completionMethod: method
     });
     
-    // Call the onSectionComplete callback
-    await onSectionComplete(section);
+    // Call the onSectionComplete callback with the completionMethod
+    await onSectionComplete(section, method);
   };
   
   // Toggle section completion status
@@ -369,7 +412,9 @@ export const useSectionNavigation = (
             ...s, 
             isCompleted: !s.isCompleted,
             // Clear completionDate if toggling from completed to incomplete
-            completionDate: !s.isCompleted ? now : undefined
+            completionDate: !s.isCompleted ? now : undefined,
+            // Set completion method to manual when toggling in navigation
+            completionMethod: !s.isCompleted ? 'manual' as const : undefined
           } 
         : s
     );
@@ -379,12 +424,13 @@ export const useSectionNavigation = (
       await addCompletedSection({
         ...section,
         isCompleted: true,
-        completionDate: now
+        completionDate: now,
+        completionMethod: 'manual' as const
       });
       
       // Call onSectionComplete to trigger modals for manzil completion
       if (section.title.includes('Manzil')) {
-        await onSectionComplete(section);
+        await onSectionComplete(section, 'manual');
       }
     }
     

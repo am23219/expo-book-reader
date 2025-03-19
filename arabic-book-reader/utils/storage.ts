@@ -4,6 +4,7 @@ import { Section, SECTIONS } from '../models/Section';
 // Keys for AsyncStorage
 const SECTIONS_STORAGE_KEY = 'arabic_book_reader_sections';
 const CURRENT_PAGE_STORAGE_KEY = 'arabic_book_reader_current_page';
+const LAST_VIEWED_PAGES_KEY = 'arabic_book_reader_last_viewed_pages';
 
 /**
  * Load saved sections from AsyncStorage
@@ -67,13 +68,76 @@ export const saveCurrentPage = async (page: number): Promise<void> => {
 };
 
 /**
+ * Load last viewed pages for all sections
+ */
+export const loadLastViewedPages = async (): Promise<Record<number, number>> => {
+  try {
+    const jsonValue = await AsyncStorage.getItem(LAST_VIEWED_PAGES_KEY);
+    if (jsonValue !== null) {
+      return JSON.parse(jsonValue);
+    }
+    return {}; // Return empty record if none is saved
+  } catch (error) {
+    console.error('Error loading last viewed pages:', error);
+    return {}; // Return empty record on error
+  }
+};
+
+/**
+ * Save last viewed page for a specific section
+ */
+export const saveLastViewedPage = async (sectionId: number, page: number): Promise<void> => {
+  try {
+    // First load current data
+    const lastViewedPages = await loadLastViewedPages();
+    
+    // Load sections to validate page is within section range
+    const sections = await loadSections();
+    const section = sections.find(s => s.id === sectionId);
+    
+    if (section) {
+      // Only save if page is within this section's range
+      if (page >= section.startPage && page <= section.endPage) {
+        console.log(`Saving page ${page} as last viewed for section ${sectionId} (${section.title})`);
+        // Update with new value
+        lastViewedPages[sectionId] = page;
+        
+        // Save back to storage
+        await AsyncStorage.setItem(LAST_VIEWED_PAGES_KEY, JSON.stringify(lastViewedPages));
+      } else {
+        console.warn(`Page ${page} is outside the range of section ${sectionId} (${section.startPage}-${section.endPage}). Not saving.`);
+      }
+    } else {
+      console.warn(`Section with ID ${sectionId} not found. Cannot save last viewed page.`);
+    }
+  } catch (error) {
+    console.error('Error saving last viewed page:', error);
+  }
+};
+
+/**
+ * Get last viewed page for a specific section
+ * Returns startPage of the section if no last viewed page is saved
+ */
+export const getLastViewedPage = async (section: Section): Promise<number> => {
+  try {
+    const lastViewedPages = await loadLastViewedPages();
+    return lastViewedPages[section.id] || section.startPage;
+  } catch (error) {
+    console.error('Error getting last viewed page:', error);
+    return section.startPage; // Return section start page on error
+  }
+};
+
+/**
  * Clear all stored data (for debugging or reset functionality)
  */
 export const clearAllData = async (): Promise<void> => {
   try {
     await AsyncStorage.multiRemove([
       SECTIONS_STORAGE_KEY,
-      CURRENT_PAGE_STORAGE_KEY
+      CURRENT_PAGE_STORAGE_KEY,
+      LAST_VIEWED_PAGES_KEY
     ]);
   } catch (error) {
     console.error('Error clearing data:', error);

@@ -19,6 +19,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 interface ReadingDay {
   date: Date;
   didRead: boolean;
+  completedSections?: number;
 }
 
 interface ActivityModalProps {
@@ -108,6 +109,23 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
               </View>
 
               <View style={styles.contentContainer}>
+                <View style={styles.quoteContainer}>
+                  <View style={styles.quoteBox}>
+                    <Text style={styles.arabicQuote}>سَدِّدُوا وَقَارِبُوا، وَاعْلَمُوا أَنْ لَنْ يُدْخِلَ أَحَدَكُمْ عَمَلُهُ الْجَنَّةَ، وَأَنَّ أَحَبَّ الأَعْمَالِ أَدْوَمُهَا إِلَى اللَّهِ، وَإِنْ قَلَّ</Text>
+                    <Text style={styles.englishQuote}>
+                      "Be steadfast and strive for moderation, and know that none of you will enter Paradise by their deeds alone. And the most beloved deeds to Allah are{" "}
+                      <Text style={{fontWeight: 'bold'}}>those that are consistent</Text>
+                      {", even if they are few."}
+                    </Text>
+                    <Text style={styles.quoteSource}>
+                      <Text style={styles.prophetName}>Prophet Muhammad ﷺ</Text>
+                      <Text> [Bukhari]</Text>
+                    </Text>
+                  </View>
+                </View>
+
+                <View style={styles.divider} />
+
                 <View style={styles.streakInfoContainer}>
                   <Text style={styles.streakLabel}>Current Streak</Text>
                   <Text style={styles.streakValue}>{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</Text>
@@ -118,6 +136,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 <View style={styles.last7DaysContainer}>
                   <Text style={styles.sectionTitle}>Last 7 Days</Text>
                   <Last7DaysIndicator readingDays={readingDays} />
+                  <Text style={styles.legendText}>Numbers indicate sections completed each day</Text>
                 </View>
               </View>
             </BlurView>
@@ -213,6 +232,63 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     marginBottom: spacing.md,
     fontFamily: fonts.boldFamily,
+  },
+  legendText: {
+    color: 'rgba(255, 255, 255, 0.6)',
+    fontSize: fonts.size.xs,
+    marginTop: spacing.sm,
+    textAlign: 'center',
+  },
+  quoteContainer: {
+    alignItems: 'center',
+    marginVertical: spacing.md,
+    paddingHorizontal: spacing.sm,
+    width: '100%',
+  },
+  quoteBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: radius.md,
+    padding: spacing.md,
+    borderLeftWidth: 3,
+    borderLeftColor: colors.primary.sky,
+    borderRightWidth: 3,
+    borderRightColor: colors.primary.sky,
+    width: '100%',
+  },
+  arabicQuote: {
+    color: colors.primary.white,
+    fontSize: fonts.size.lg,
+    fontWeight: 'bold',
+    marginBottom: spacing.md,
+    textAlign: 'center',
+    lineHeight: 32,
+    fontFamily: fonts.boldFamily,
+    textShadowColor: 'rgba(114, 187, 225, 0.3)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  englishQuote: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: fonts.size.sm,
+    marginBottom: spacing.sm,
+    fontStyle: 'italic',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  quoteSource: {
+    color: colors.primary.sky,
+    fontSize: fonts.size.xs,
+    textAlign: 'center',
+    fontWeight: 'bold',
+    marginTop: spacing.xs,
+  },
+  prophetName: {
+    color: '#e6c260', // Gold color for reverence
+    fontWeight: 'bold',
+    textShadowColor: 'rgba(230, 194, 96, 0.6)',
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 3,
+    fontSize: fonts.size.sm,
   },
 });
 

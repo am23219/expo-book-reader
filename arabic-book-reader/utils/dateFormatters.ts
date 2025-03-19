@@ -23,12 +23,11 @@ export const formatCompletionDate = (date: Date | undefined): string => {
     return 'Yesterday';
   }
   
-  // For other dates, format as "Sat, Mar 15"
+  // For other dates, format as "Wed. 3/15"
   const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
   const dayName = days[completionDate.getDay()];
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const month = monthNames[completionDate.getMonth()];
+  const month = completionDate.getMonth() + 1; // JavaScript months are 0-indexed
   const day = completionDate.getDate();
   
-  return `${dayName}, ${month} ${day}`;
+  return `${dayName}. ${month}/${day}`;
 }; 

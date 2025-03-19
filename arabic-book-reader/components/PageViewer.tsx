@@ -52,6 +52,19 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
     }
   };
 
+  // Calculate adjusted page number for display
+  const getAdjustedPageNumber = () => {
+    // If at a section boundary (start page of this section), show as page 1
+    if (currentPage === currentSection.startPage) {
+      return 1;
+    }
+    // Otherwise show as the relative page within this section
+    return currentPage - currentSection.startPage + 1;
+  };
+
+  // Get adjusted page number for display
+  const displayPageNumber = getAdjustedPageNumber();
+
   return (
     <View style={styles.container}>
       {loading && (
@@ -66,7 +79,7 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
           <View style={styles.pageContainer}>
             <View style={styles.pageHeaderContainer}>
               <View style={styles.sectionTitleContainer}>
-                <Text style={styles.pageNumber}>Page {currentPage}</Text>
+                <Text style={styles.pageNumber}>Page {displayPageNumber}</Text>
               </View>
             </View>
             
@@ -96,7 +109,7 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
                     
                     <View style={styles.pageIndicator}>
                       <Text style={styles.pageIndicatorText}>
-                        {currentPage} / {MAX_PAGE}
+                        {displayPageNumber} / {currentSection.endPage - currentSection.startPage + 1}
                       </Text>
                     </View>
                     
@@ -166,7 +179,7 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
       <View style={styles.pageNumberIndicator}>
         <View style={styles.pageNumberIndicatorInner}>
           <Text style={styles.pageNumberIndicatorText}>
-            {currentPage} / {MAX_PAGE}
+            {displayPageNumber} / {currentSection.endPage - currentSection.startPage + 1}
           </Text>
         </View>
       </View>

@@ -2,10 +2,12 @@ import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startOfDay, addDays, differenceInDays, isSameDay } from '../utils/dateUtils';
 import { updateWidgetWithReadingProgress } from '../utils/widgetSharing';
+import { Section } from '../models/Section';
 
 export interface ReadingDay {
   date: Date;
   didRead: boolean;
+  completedSections: number;
 }
 
 export interface ReadingStreakData {
@@ -25,10 +27,12 @@ export const useReadingStreak = (): [
   const [readingHistory, setReadingHistory] = useState<Date[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
   const [longestStreak, setLongestStreak] = useState(0);
+  const [completedSections, setCompletedSections] = useState<Section[]>([]);
 
   // Load reading history on component mount
   useEffect(() => {
     loadReadingData();
+    loadCompletedSections();
   }, []);
 
   // Load saved reading history
@@ -104,7 +108,7 @@ export const useReadingStreak = (): [
         history: readingHistory,
         currentStreak,
         longestStreak,
-        past7Days: getPast7Days(readingHistory)
+        past7Days: getPast7Days(readingHistory, completedSections)
       };
     } catch (error) {
       console.error('Error loading reading data:', error);
@@ -112,14 +116,33 @@ export const useReadingStreak = (): [
         history: [],
         currentStreak: 0,
         longestStreak: 0,
-        past7Days: getPast7Days([])
+        past7Days: getPast7Days([], completedSections)
       };
+    }
+  };
+
+  // Load completed sections for tracking daily completion counts
+  const loadCompletedSections = async () => {
+    try {
+      const savedSections = await AsyncStorage.getItem('completed_sections');
+      if (savedSections) {
+        const sections = JSON.parse(savedSections).map((section: Section) => ({
+          ...section,
+          completionDate: section.completionDate ? new Date(section.completionDate) : undefined
+        }));
+        setCompletedSections(sections);
+      }
+    } catch (error) {
+      console.error('Error loading completed sections:', error);
     }
   };
 
   // Update reading streak when a new day is recorded
   const updateReadingStreak = async (): Promise<ReadingStreakData> => {
     try {
+      // Load the latest completed sections data
+      await loadCompletedSections();
+      
       // Get today's date (start of day for consistent comparison)
       const today = startOfDay(new Date());
       
@@ -184,7 +207,7 @@ export const useReadingStreak = (): [
       await AsyncStorage.setItem('longest_streak', newLongestStreak.toString());
       
       // Get the past 7 days data
-      const past7Days = getPast7Days(history);
+      const past7Days = getPast7Days(history, completedSections);
       
       // Update widget data
       try {
@@ -214,13 +237,13 @@ export const useReadingStreak = (): [
         history: [],
         currentStreak: 1,
         longestStreak: 1,
-        past7Days: getPast7Days([])
+        past7Days: getPast7Days([], completedSections)
       };
     }
   };
 
   // Helper function to generate the past 7 days data for the streak component
-  const getPast7Days = (history: Date[]): ReadingDay[] => {
+  const getPast7Days = (history: Date[], sections: Section[]): ReadingDay[] => {
     try {
       const today = startOfDay(new Date());
       const result: ReadingDay[] = [];
@@ -241,26 +264,32 @@ export const useReadingStreak = (): [
           isSameDay(readDate, date)
         );
         
+        // Count sections completed on this day
+        const sectionsCompletedToday = sections.filter(section => 
+          section.completionDate && isSameDay(new Date(section.completionDate), date)
+        ).length;
+        
         result.push({ 
           date, // Ensure this is a proper Date object
-          didRead 
+          didRead,
+          completedSections: sectionsCompletedToday
         });
       }
       
       console.log('getPast7Days result:', result.map(d => ({
-        date: d.date.toString(),
-        isDate: d.date instanceof Date,
-        didRead: d.didRead
+        date: d.date.toISOString(),
+        didRead: d.didRead,
+        completedSections: d.completedSections
       })));
       
       return result;
     } catch (error) {
-      console.error('Error in getPast7Days:', error);
-      // Return safe fallback with current date
-      const today = new Date();
-      return Array.from({ length: 7 }, (_, i) => ({
-        date: addDays(today, -i),
-        didRead: false
+      console.error('Error generating past 7 days data:', error);
+      const today = startOfDay(new Date());
+      return Array(7).fill(0).map((_, i) => ({
+        date: startOfDay(addDays(today, -i)),
+        didRead: false,
+        completedSections: 0
       }));
     }
   };
@@ -270,7 +299,7 @@ export const useReadingStreak = (): [
       history: readingHistory,
       currentStreak,
       longestStreak,
-      past7Days: getPast7Days(readingHistory)
+      past7Days: getPast7Days(readingHistory, completedSections)
     },
     updateReadingStreak
   ];

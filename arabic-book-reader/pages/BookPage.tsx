@@ -5,7 +5,7 @@
  * This component manages section navigation, reading progress, streak tracking, and khatm completion.
  */
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Alert, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,6 +17,7 @@ import PageViewer from '../components/PageViewer';
 import SectionNavigation from '../components/SectionNavigation';
 import EnhancedPdfViewer from '../components/EnhancedPdfViewer';
 import ReadingStreakNotification from '../components/ReadingStreakNotification';
+import ReadingManzilCompletionNotification from '../components/ReadingManzilCompletionNotification';
 import Header from '../components/Header';
 import AudioModal from '../components/AudioModal';
 
@@ -33,7 +34,7 @@ import { usePdfViewer } from '../hooks/usePdfViewer';
 // -----------------------------
 // Models and Utils
 // -----------------------------
-import { SECTIONS } from '../models/Section';
+import { SECTIONS, Section } from '../models/Section';
 import { clearAllData } from '../utils/storage';
 import { colors } from '../constants/theme';
 
@@ -53,21 +54,35 @@ export default function BookPage() {
   // const [notificationState, notificationActions] = useNotifications();
   const [pdfViewerState, pdfViewerActions] = usePdfViewer();
   
+  // State for tracking which notification to show
+  const [showReadingManzilCompletion, setShowReadingManzilCompletion] = useState(false);
+  const [readingManzilCompletionData, setReadingManzilCompletionData] = useState({
+    title: '',
+    quote: ''
+  });
+  
   // Initialize section navigation with callback for section completion
   const [sectionData, sectionActions] = useSectionNavigation(
     SECTIONS, 
-    async (section) => {
+    async (section, completionMethod) => {
       // Update reading streak
       await updateReadingStreak();
       
       // Check if all sections are completed after this one
       const allSectionsCompleted = sectionData.sections.every(s => 
-        s.id === section.id || s.isCompleted
+        (s.id === section.id || s.isCompleted)
       );
+      
+      console.log(`Section ${section.title} completed. All sections completed: ${allSectionsCompleted}`);
+      
+      // Use completionMethod or default to 'automatic'
+      const method = completionMethod || 'automatic';
       
       if (allSectionsCompleted) {
         // All sections are completed - trigger khatm completion
         try {
+          console.log('All sections completed! Triggering khatm completion notification');
+          
           // Complete khatm and get reset sections
           const resetSections = await khatmActions.completeKhatm(sectionData.sections);
           
@@ -81,32 +96,39 @@ export default function BookPage() {
         }
       }
       else if (section.title.includes('Manzil')) {
-        console.log(`Manzil ${section.title} completed!`);
+        console.log(`Manzil ${section.title} completed via ${method}!`);
         
         // Extract manzil number from the title
         const manzilMatch = section.title.match(/Manzil (\d+)/);
         const manzilNumber = manzilMatch ? manzilMatch[1] : '';
         
-        // Set notification data for manzil completion
-        const message = streakData.currentStreak > 1 
-          ? `Great job completing Manzil ${manzilNumber}! You're on a ${streakData.currentStreak}-day streak.` 
-          : `Congratulations on completing Manzil ${manzilNumber}!`;
-        
-        // Update notification data
-        khatmActions.setNotificationData({
-          title: `Manzil ${manzilNumber} Completed!`,
-          isKhatm: false,
-          message
-        });
-        
-        // Show notification
-        khatmActions.setShowNotification(true);
-      }
-      
-      // Check for Khatm completion
-      const updatedSections = await khatmActions.checkKhatmCompletion(sectionData.sections);
-      if (updatedSections !== sectionData.sections) {
-        sectionActions.setSections(updatedSections);
+        if (method === 'automatic') {
+          // For automatic completion during reading, show the new notification
+          const quote = "Whoever reads the Quran and acts on what is in it, his parents will be made to wear a crown on the Day of Resurrection, whose light is better than the light of the sun.";
+          
+          setReadingManzilCompletionData({
+            title: `Manzil ${manzilNumber} Completed!`,
+            quote
+          });
+          
+          setShowReadingManzilCompletion(true);
+        } else {
+          // For manual completion in navigation, use the existing notification
+          // Set notification data for manzil completion
+          const message = streakData.currentStreak > 1 
+            ? `Great job completing Manzil ${manzilNumber}! You're on a ${streakData.currentStreak}-day streak.` 
+            : `Congratulations on completing Manzil ${manzilNumber}!`;
+          
+          // Update notification data
+          khatmActions.setNotificationData({
+            title: `Manzil ${manzilNumber} Completed!`,
+            isKhatm: false,
+            message
+          });
+          
+          // Show notification
+          khatmActions.setShowNotification(true);
+        }
       }
     }
   );
@@ -234,7 +256,7 @@ export default function BookPage() {
         sections={sectionData.sections}
       />
       
-      {/* Reading Streak Notification */}
+      {/* Regular Reading Streak Notification (for manual manzil completion) */}
       <ReadingStreakNotification 
         visible={khatmData.showNotification}
         title={khatmData.notificationData.title}
@@ -250,18 +272,26 @@ export default function BookPage() {
             ? parseInt(khatmData.notificationData.title.match(/Manzil (\d+)/)?.[1] || '1') 
             : undefined}
         rewardPoints={khatmData.notificationData.isKhatm ? 500 + (streakData.currentStreak * 20) : 50}
-        totalPoints={5000} // This should be replaced with actual total points from state
-        level={Math.min(Math.floor(khatmData.khatmCount / 3) + 1, 5)}
       />
       
-      {/* Reminder Settings Modal - Currently disabled */}
-      {/* Commenting out notification modal for now
+      {/* Reading Manzil Completion Notification (for automatic manzil completion) */}
+      <ReadingManzilCompletionNotification
+        visible={showReadingManzilCompletion}
+        title={readingManzilCompletionData.title}
+        quote={readingManzilCompletionData.quote}
+        readingDays={streakData.past7Days}
+        currentStreak={streakData.currentStreak}
+        longestStreak={streakData.longestStreak}
+        onClose={() => setShowReadingManzilCompletion(false)}
+        level={Math.floor(streakData.currentStreak / 7) + 1}
+        rankLabel={`Level ${Math.floor(streakData.currentStreak / 7) + 1} Reciter`}
+      />
+      
+      {/* Commenting out notification screen for now
       <Modal
         visible={notificationState.showReminderSettings}
         animationType="slide"
         transparent={true}
-        statusBarTranslucent={true}
-        onRequestClose={notificationActions.toggleReminderSettings}
       >
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
           <ReminderSettingsScreen onClose={notificationActions.toggleReminderSettings} />

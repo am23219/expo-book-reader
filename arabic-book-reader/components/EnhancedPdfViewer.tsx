@@ -36,6 +36,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const [showZoomIndicator, setShowZoomIndicator] = useState(false);
   const zoomIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastPageRef = useRef<number>(currentPage);
   
   // Animation values for button press effects
   const prevButtonScale = React.useRef(new Animated.Value(1)).current;
@@ -165,10 +166,16 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   // Effect to scroll to the correct page when currentPage changes
   React.useEffect(() => {
     if (flatListRef.current && listIndex >= 0 && listIndex < reversedPages.length) {
+      // Determine if this is a large page jump (e.g., navigating to a new manzil)
+      const isLargeJump = Math.abs(currentPage - lastPageRef.current) > 3;
+      
       flatListRef.current.scrollToIndex({
         index: listIndex,
-        animated: true
+        animated: !isLargeJump // Only animate for small page changes
       });
+      
+      // Update the last page reference
+      lastPageRef.current = currentPage;
     }
   }, [currentPage, listIndex, reversedPages.length]);
 
@@ -186,6 +193,19 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
       }
     };
   }, []);
+
+  // Calculate the adjusted page for display
+  const getAdjustedPageNumber = () => {
+    // If at a section boundary (start page of this section), show as page 1
+    if (currentPage === currentSection.startPage) {
+      return 1;
+    }
+    // Otherwise show as the relative page within this section
+    return currentPage - currentSection.startPage + 1;
+  };
+
+  const displayPageNumber = getAdjustedPageNumber();
+  const totalPagesInSection = currentSection.endPage - currentSection.startPage + 1;
 
   return (
     <View style={styles.container}>
@@ -309,7 +329,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         <View style={styles.pageIndicator}>
           <View style={styles.pageIndicatorInner}>
             <Text style={styles.pageIndicatorText}>
-              {currentPage} / {totalPages}
+              {displayPageNumber} / {totalPagesInSection}
             </Text>
           </View>
         </View>

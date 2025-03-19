@@ -76,6 +76,31 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(100)).current;
   
+  // Function to scroll to the correct position
+  const scrollToCurrentSection = () => {
+    const currentIndex = sections.findIndex(section => section.id === currentSectionId);
+    if (currentIndex !== -1 && scrollViewRef.current) {
+      // Find the manzil before the current one if it exists
+      let scrollIndex = currentIndex;
+      
+      // If current section isn't the first one, show the previous manzil 
+      // by scrolling to (current - 1) position
+      if (currentIndex > 0) {
+        scrollIndex = currentIndex - 1;
+      }
+      
+      // Calculate exact scroll position based on section height
+      // Each section item is about 120px tall including margins
+      const sectionHeight = 120;
+      const scrollPosition = scrollIndex * sectionHeight;
+      
+      scrollViewRef.current?.scrollTo({
+        y: scrollPosition,
+        animated: true
+      });
+    }
+  };
+  
   // Fade in animation when component mounts
   useEffect(() => {
     Animated.parallel([
@@ -90,6 +115,11 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
         useNativeDriver: true
       })
     ]).start();
+    
+    // Scroll to the current section with a slight delay to let the animation finish
+    setTimeout(() => {
+      scrollToCurrentSection();
+    }, 500);
   }, []);
   
   // Reset completion animation when component mounts
@@ -99,19 +129,13 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
     }
   }, []);
   
-  // Scroll to current section when component loads
+  // Update scroll position when current section changes
   useEffect(() => {
-    const currentIndex = sections.findIndex(section => section.id === currentSectionId);
-    if (currentIndex !== -1 && scrollViewRef.current) {
-      // Delay slightly to allow the view to fully render
-      setTimeout(() => {
-        scrollViewRef.current?.scrollTo({
-          y: currentIndex * 100, // Adjusted for new section item height
-          animated: true
-        });
-      }, 400);
-    }
-  }, [currentSectionId]);
+    // Slight delay to ensure the view is rendered
+    setTimeout(() => {
+      scrollToCurrentSection();
+    }, 400);
+  }, [currentSectionId, sections]);
   
   // Add state for calendar modal
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
@@ -278,7 +302,7 @@ const styles = StyleSheet.create({
   },
   sectionsContainer: {
     flex: 1,
-    paddingHorizontal: spacing.md,
+    paddingHorizontal: spacing.sm,
   },
   scrollContentContainer: {
     paddingBottom: spacing.xl * 2,
