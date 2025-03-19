@@ -1,15 +1,12 @@
 import Foundation
+import React
 // If using WidgetKit (iOS 14+)
 import WidgetKit
-
-// Define typealias for React Native promise blocks
-typealias RCTPromiseResolveBlock = (Any?) -> Void
-typealias RCTPromiseRejectBlock = (String?, String?, Error?) -> Void
 
 @objc(WidgetDataSharing)
 class WidgetDataSharing: NSObject {
   
-  private let userDefaults = UserDefaults(suiteName: "group.com.honeysystems.barakaatmakiyyah.app")
+  private let userDefaults = UserDefaults(suiteName: "group.com.barakatmakkiyyah.app")
   
   @objc
   func updateWidgetData(_ data: String, resolver resolve: @escaping RCTPromiseResolveBlock, rejecter reject: @escaping RCTPromiseRejectBlock) {

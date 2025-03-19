@@ -48,7 +48,7 @@ export default function BookPage() {
   // State & Hooks Initialization
   // -----------------------------
   // Reading streak and progress tracking
-  const [streakData, updateReadingStreak] = useReadingStreak();
+  const [streakData, updateReadingStreak, updateNextUpProgress] = useReadingStreak();
   const [khatmData, khatmActions] = useKhatmCompletion(streakData.currentStreak);
   // Commenting out notification functionality for now
   // const [notificationState, notificationActions] = useNotifications();
@@ -136,7 +136,7 @@ export default function BookPage() {
   // -----------------------------
   // Effects
   // -----------------------------
-  // Save the current book title for the widget
+  // Save the current book title for the widget and update NextUp widget
   useEffect(() => {
     const saveCurrentBookTitle = async () => {
       try {
@@ -149,6 +149,39 @@ export default function BookPage() {
     
     saveCurrentBookTitle();
   }, []);
+  
+  // Update NextUp widget when current page or section changes
+  useEffect(() => {
+    const updateNextUpWidget = async () => {
+      try {
+        // Slight delay to ensure app is fully initialized
+        setTimeout(async () => {
+          try {
+            const totalPages = sectionData.currentSection.endPage - sectionData.currentSection.startPage + 1;
+            const currentPageInSection = sectionData.currentPage - sectionData.currentSection.startPage + 1;
+            // Get the book title from AsyncStorage or use default
+            const storedBookTitle = await AsyncStorage.getItem('current_book_title') || "Barakaat Makkiyyah";
+            
+            await updateNextUpProgress(
+              sectionData.currentSection.id,
+              currentPageInSection,
+              totalPages,
+              sectionData.currentSection.isCompleted,
+              storedBookTitle
+            );
+          } catch (error) {
+            // Silently handle widget errors - don't crash the app
+            console.error('Error updating NextUp widget (delayed):', error);
+          }
+        }, 2000); // 2-second delay to avoid launch issues
+      } catch (error) {
+        // Silently handle any errors
+        console.error('Error setting up widget update:', error);
+      }
+    };
+    
+    updateNextUpWidget();
+  }, [sectionData.currentPage, sectionData.currentSection]);
   
   // Commenting out notification initialization for now
   // React.useEffect(() => {
@@ -319,7 +352,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     bottom: 0,
-    width: 280,
+    width: 320,
     backgroundColor: colors.primary.deep,
     zIndex: 100,
     borderTopRightRadius: 16,

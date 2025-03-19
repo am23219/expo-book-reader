@@ -39,16 +39,22 @@ const PageViewer: React.FC<PageViewerProps> = ({ currentPage, onPageChange, curr
   
   const handlePrevPage = () => {
     if (currentPage < MAX_PAGE) {
-      animateButton(prevButtonScale);
+      // Call page change immediately before animation starts
       onPageChange(currentPage + 1);
+      
+      // Start the button animation
+      animateButton(prevButtonScale);
     }
   };
 
   const handleNextPage = () => {
     // Use the maximum page determined from the model
     if (currentPage > 1) {
-      animateButton(nextButtonScale);
+      // Call page change immediately before animation starts
       onPageChange(currentPage - 1);
+      
+      // Start the button animation
+      animateButton(nextButtonScale);
     }
   };
 

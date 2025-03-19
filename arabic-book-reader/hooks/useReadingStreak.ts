@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { startOfDay, addDays, differenceInDays, isSameDay } from '../utils/dateUtils';
-import { updateWidgetWithReadingProgress } from '../utils/widgetSharing';
+import { updateWidgetWithReadingProgress, updateNextUpWidget } from '../utils/widgetSharing';
 import { Section } from '../models/Section';
 
 export interface ReadingDay {
@@ -22,7 +22,8 @@ export interface ReadingStreakData {
  */
 export const useReadingStreak = (): [
   ReadingStreakData,
-  () => Promise<ReadingStreakData>
+  () => Promise<ReadingStreakData>,
+  (sectionId: number, currentPage: number, totalPages: number, completed: boolean, bookTitle?: string) => Promise<void>
 ] => {
   const [readingHistory, setReadingHistory] = useState<Date[]>([]);
   const [currentStreak, setCurrentStreak] = useState(0);
@@ -214,12 +215,28 @@ export const useReadingStreak = (): [
         // Get the current book title from storage or use default
         const bookTitle = await AsyncStorage.getItem('current_book_title') || 'Barakat Makkiyyah';
         
+        // Get current section info if available
+        const currentSectionId = await AsyncStorage.getItem('current_section_id');
+        const currentPageValue = await AsyncStorage.getItem('current_page');
+        const currentSectionInfo = currentSectionId ? completedSections.find(s => s.id === parseInt(currentSectionId)) : null;
+        
+        let currentPageInfo;
+        if (currentSectionInfo && currentPageValue) {
+          currentPageInfo = {
+            sectionId: currentSectionInfo.id,
+            currentPage: parseInt(currentPageValue),
+            totalPages: currentSectionInfo.endPage - currentSectionInfo.startPage + 1,
+            completed: currentSectionInfo.isCompleted
+          };
+        }
+        
         // Update widget data
         await updateWidgetWithReadingProgress(
           bookTitle,
           past7Days,
           streak,
-          newLongestStreak
+          newLongestStreak,
+          currentPageInfo
         );
       } catch (widgetError) {
         console.error('Error updating widget data:', widgetError);
@@ -294,6 +311,34 @@ export const useReadingStreak = (): [
     }
   };
 
+  /**
+   * Update the NextUp widget with current section progress
+   */
+  const updateNextUpProgress = async (
+    sectionId: number,
+    currentPage: number,
+    totalPages: number,
+    completed: boolean,
+    bookTitle?: string
+  ): Promise<void> => {
+    try {
+      // Save to AsyncStorage for persistence
+      await AsyncStorage.setItem('current_section_id', sectionId.toString());
+      await AsyncStorage.setItem('current_page', currentPage.toString());
+      await AsyncStorage.setItem('total_pages', totalPages.toString());
+      
+      // Get the book title from parameters or AsyncStorage
+      const storedBookTitle = bookTitle || await AsyncStorage.getItem('current_book_title') || "Barakaat Makkiyyah";
+      
+      // Update the NextUp widget
+      await updateNextUpWidget(sectionId, currentPage, totalPages, completed, storedBookTitle);
+      
+      console.log('NextUp widget updated with progress:', { sectionId, currentPage, totalPages, completed, bookTitle: storedBookTitle });
+    } catch (error) {
+      console.error('Error updating NextUp widget:', error);
+    }
+  };
+
   return [
     {
       history: readingHistory,
@@ -301,6 +346,7 @@ export const useReadingStreak = (): [
       longestStreak,
       past7Days: getPast7Days(readingHistory, completedSections)
     },
-    updateReadingStreak
+    updateReadingStreak,
+    updateNextUpProgress
   ];
 }; 

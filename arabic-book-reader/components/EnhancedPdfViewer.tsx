@@ -7,7 +7,7 @@ import {
   StyleSheet, 
   TouchableOpacity, 
   Animated, 
-  Text 
+  Text
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { pdfPages } from "../constants/pdfPages";
@@ -16,6 +16,9 @@ import { Section } from "../models/Section";
 import { PinchGestureHandler, State } from "react-native-gesture-handler";
 
 const { width, height } = Dimensions.get("window");
+
+// Number of pages to preload before and after the current page
+const PRELOAD_COUNT = 2;
 
 interface EnhancedPdfViewerProps {
   currentPage: number;
@@ -34,6 +37,7 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const [showControls, setShowControls] = useState(true);
   const [isNavigating, setIsNavigating] = useState(false);
   const [showZoomIndicator, setShowZoomIndicator] = useState(false);
+  const [pagesToPreload, setPagesToPreload] = useState<number[]>([]);
   const zoomIndicatorTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastPageRef = useRef<number>(currentPage);
@@ -49,6 +53,23 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   // Min and max scale limits
   const MIN_SCALE = 1;
   const MAX_SCALE = 5;
+
+  // Update pages to preload when current page changes
+  useEffect(() => {
+    const pagesToPreloadArray = [];
+    
+    // Add previous pages (up to PRELOAD_COUNT)
+    for (let i = Math.max(1, currentPage - PRELOAD_COUNT); i < currentPage; i++) {
+      pagesToPreloadArray.push(i);
+    }
+    
+    // Add next pages (up to PRELOAD_COUNT)
+    for (let i = currentPage + 1; i <= Math.min(totalPages, currentPage + PRELOAD_COUNT); i++) {
+      pagesToPreloadArray.push(i);
+    }
+    
+    setPagesToPreload(pagesToPreloadArray);
+  }, [currentPage, totalPages]);
 
   // Animate button presses
   const animateButton = (animatedValue: Animated.Value) => {
@@ -71,7 +92,10 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   // - Previous (right button): moves to lower page number
   const handleNextPage = () => {
     if (currentPage < totalPages && !isNavigating) {
+      // Set navigation lock first to prevent multiple rapid clicks
       setIsNavigating(true);
+      
+      // Animate button and change page
       animateButton(nextButtonScale);
       onPageChange(currentPage + 1);
       
@@ -89,7 +113,10 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   
   const handlePrevPage = () => {
     if (currentPage > 1 && !isNavigating) {
+      // Set navigation lock first to prevent multiple rapid clicks
       setIsNavigating(true);
+      
+      // Animate button and change page
       animateButton(prevButtonScale);
       onPageChange(currentPage - 1);
       
@@ -155,27 +182,35 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const reversedPages = [...pdfPages].reverse();
   const listIndex = totalPages - currentPage;
 
-  // Log for debugging
-  useEffect(() => {
-    console.log('Total pages:', totalPages);
-    console.log('Current page:', currentPage);
-    console.log('List index:', listIndex);
-    console.log('First page source:', pdfPages[0]);
-  }, [currentPage, totalPages]);
-
   // Effect to scroll to the correct page when currentPage changes
   React.useEffect(() => {
     if (flatListRef.current && listIndex >= 0 && listIndex < reversedPages.length) {
       // Determine if this is a large page jump (e.g., navigating to a new manzil)
       const isLargeJump = Math.abs(currentPage - lastPageRef.current) > 3;
       
-      flatListRef.current.scrollToIndex({
-        index: listIndex,
-        animated: !isLargeJump // Only animate for small page changes
-      });
+      // Set navigating flag to prevent multiple updates
+      setIsNavigating(true);
       
-      // Update the last page reference
-      lastPageRef.current = currentPage;
+      // Use a tiny timeout to ensure UI state is settled before scrolling
+      setTimeout(() => {
+        if (flatListRef.current) {
+          flatListRef.current.scrollToIndex({
+            index: listIndex,
+            animated: !isLargeJump // Only animate for small page changes
+          });
+        }
+        
+        // Update the last page reference
+        lastPageRef.current = currentPage;
+      }, 10);
+      
+      // Release the navigation lock after animation completes
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+      navigationTimeoutRef.current = setTimeout(() => {
+        setIsNavigating(false);
+      }, isLargeJump ? 100 : 300);
     }
   }, [currentPage, listIndex, reversedPages.length]);
 
@@ -207,8 +242,27 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const displayPageNumber = getAdjustedPageNumber();
   const totalPagesInSection = currentSection.endPage - currentSection.startPage + 1;
 
+  // Render preload images (hidden)
+  const renderPreloadImages = () => {
+    return pagesToPreload.map(pageNum => {
+      const imageSource = pdfPages[pageNum - 1];
+      if (!imageSource) return null;
+      
+      return (
+        <Image
+          key={`preload-${pageNum}`}
+          source={imageSource}
+          style={{ width: 1, height: 1, opacity: 0, position: 'absolute' }}
+        />
+      );
+    });
+  };
+
   return (
     <View style={styles.container}>
+      {/* Hidden preload images */}
+      {renderPreloadImages()}
+      
       {/* Image Viewer */}
       <FlatList
         ref={flatListRef}
@@ -216,8 +270,6 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         horizontal
         pagingEnabled
         showsHorizontalScrollIndicator={false}
-        // Temporarily remove initialScrollIndex for debugging
-        // initialScrollIndex={listIndex}
         getItemLayout={(data, index) => ({
           length: width,
           offset: width * index,
@@ -229,8 +281,22 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
           // Convert the index back to our page number (accounting for the reversed array)
           const newPage = totalPages - index;
           
-          if (newPage !== currentPage) {
+          // Only update if page actually changed
+          if (newPage !== currentPage && newPage > 0 && newPage <= totalPages) {
+            // Set navigation lock
+            setIsNavigating(true);
             onPageChange(newPage);
+            
+            // Reset navigation lock after animation completes
+            if (navigationTimeoutRef.current) {
+              clearTimeout(navigationTimeoutRef.current);
+            }
+            navigationTimeoutRef.current = setTimeout(() => {
+              setIsNavigating(false);
+            }, 300);
+          } else {
+            // Even if page didn't change, release navigation lock
+            setIsNavigating(false);
           }
         }}
         renderItem={({ item }) => (
@@ -244,18 +310,20 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
                 onPress={toggleControls}
                 activeOpacity={1}
               >
-                <Animated.Image 
-                  source={item} 
-                  style={[
-                    styles.image,
-                    { transform: [{ scale: combinedScale }] }
-                  ]} 
-                  resizeMode="contain"
-                  onError={(e) => {
-                    console.error('Image loading error:', e.nativeEvent.error);
-                    onError && onError();
-                  }}
-                />
+                <Animated.View style={[
+                  styles.imageContainer,
+                  { transform: [{ scale: combinedScale }] }
+                ]}>
+                  <Image 
+                    source={item} 
+                    style={styles.image}
+                    resizeMode="contain"
+                    onError={() => {
+                      console.error('Image loading error');
+                      onError && onError();
+                    }}
+                  />
+                </Animated.View>
               </TouchableOpacity>
             </Animated.View>
           </PinchGestureHandler>
@@ -355,10 +423,15 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+  imageContainer: {
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center",
+  },
   image: { 
     width: "100%",
     height: "100%",
-    resizeMode: "contain"
   },
   navigationContainer: { 
     position: "absolute", 

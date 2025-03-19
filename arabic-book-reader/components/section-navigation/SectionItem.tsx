@@ -15,6 +15,7 @@ interface SectionItemProps {
   animatedValue: Animated.Value;
   onPress: () => void;
   onToggleComplete: () => void;
+  refreshTimestamp?: number;
 }
 
 const SectionItem: React.FC<SectionItemProps> = ({
@@ -24,7 +25,8 @@ const SectionItem: React.FC<SectionItemProps> = ({
   isCurrent,
   animatedValue,
   onPress,
-  onToggleComplete
+  onToggleComplete,
+  refreshTimestamp = 0,
 }) => {
   // Animation reference for completion effect
   const checkmarkOpacity = useRef(new Animated.Value(0)).current;
@@ -32,21 +34,46 @@ const SectionItem: React.FC<SectionItemProps> = ({
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const [hasSavedPage, setHasSavedPage] = useState(false);
   
-  // Load saved page data on component mount
+  // Load saved page data on component mount or refresh
   useEffect(() => {
     const checkSavedPage = async () => {
       try {
         const lastViewedPages = await loadLastViewedPages();
         const savedPage = lastViewedPages[section.id];
-        // Set flag if this section has a saved page that's not page 1 and the section is not complete
-        setHasSavedPage(savedPage !== undefined && savedPage > section.startPage && !section.isCompleted);
+        
+        // Debug logging for Manzil 7 issue
+        if (section.title.includes("Manzil 7")) {
+          console.log(`Manzil 7 debug - ID: ${section.id}, Title: ${section.title}`);
+          console.log(`Saved page: ${savedPage}, Start page: ${section.startPage}`);
+          console.log(`Last viewed pages:`, lastViewedPages);
+        }
+        
+        // Fix bug with bookmark display logic
+        // Only show bookmark if:
+        // 1. There is a saved page
+        // 2. The saved page is greater than startPage (i.e., not on first page)
+        // 3. The section is not completed
+        
+        // Handle edge case where savedPage might be 0 or otherwise falsy but valid
+        const hasValidSavedPage = savedPage !== undefined && savedPage !== null;
+        const isNotOnFirstPage = hasValidSavedPage && savedPage > section.startPage;
+        
+        // For Manzil 7, log the decision process
+        if (section.title.includes("Manzil 7")) {
+          console.log(`Has valid saved page: ${hasValidSavedPage}`);
+          console.log(`Is not on first page: ${isNotOnFirstPage}`);
+          console.log(`Is not completed: ${!section.isCompleted}`);
+          console.log(`Should show bookmark: ${hasValidSavedPage && isNotOnFirstPage && !section.isCompleted}`);
+        }
+        
+        setHasSavedPage(hasValidSavedPage && isNotOnFirstPage && !section.isCompleted);
       } catch (error) {
         console.error('Error checking saved page:', error);
       }
     };
     
     checkSavedPage();
-  }, [section]);
+  }, [section, refreshTimestamp]);
   
   // Handle the completion toggle with animation
   const handleToggleComplete = () => {

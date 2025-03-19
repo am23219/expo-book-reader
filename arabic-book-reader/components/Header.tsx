@@ -126,9 +126,6 @@ const Header: React.FC<HeaderProps> = ({
             />
           </View>
         </Animated.View>
-        <View style={styles.progressPageInfo}>
-          <Text style={styles.progressPageText}>{pagesReadInSection}/{totalPagesInSection}</Text>
-        </View>
       </View>
     </LinearGradient>
   );
@@ -232,7 +229,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   manzilIcon: {
-    marginRight: spacing.xs / 2,
+    marginRight: spacing.sm,
   },
   manzilText: {
     color: colors.primary.white,
@@ -261,6 +258,7 @@ const styles = StyleSheet.create({
     height: '100%',
     borderRadius: radius.round,
     overflow: 'hidden',
+    width: '0%',
   },
   progressInner: {
     width: '100%',
@@ -282,23 +280,6 @@ const styles = StyleSheet.create({
         elevation: 4,
       },
     }),
-  },
-  progressPageInfo: {
-    position: 'absolute',
-    right: -spacing.sm,
-    top: -spacing.md - 2,
-    backgroundColor: colors.primary.sky,
-    borderRadius: radius.round,
-    paddingVertical: 2,
-    paddingHorizontal: spacing.xs,
-    ...shadows.small,
-    shadowColor: colors.effects.glow,
-  },
-  progressPageText: {
-    color: colors.secondary.darkNavy,
-    fontSize: 10,
-    fontWeight: 'bold',
-    fontFamily: fonts.boldFamily,
   },
 });
 

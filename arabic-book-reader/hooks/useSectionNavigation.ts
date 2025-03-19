@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Section } from '../models/Section';
-import { loadSections, saveSections, loadCurrentPage, saveCurrentPage, saveLastViewedPage, getLastViewedPage } from '../utils/storage';
+import { loadSections, saveSections, loadCurrentPage, saveCurrentPage, saveLastViewedPage, getLastViewedPage, loadLastViewedPages } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
 import useCompletedSections from './useCompletedSections';
 
@@ -36,7 +36,7 @@ export const useSectionNavigation = (
   const [currentSection, setCurrentSection] = useState<Section>(initialSections[0]);
   const [isSectionDrawerOpen, setIsSectionDrawerOpen] = useState(false);
   
-  const sectionDrawerAnim = useRef(new Animated.Value(-280)).current;
+  const sectionDrawerAnim = useRef(new Animated.Value(-330)).current;
   const lastVisitedPages = useRef<number[]>([]);
   const isDirectNavigation = useRef(false);
   
@@ -47,18 +47,69 @@ export const useSectionNavigation = (
   useEffect(() => {
     const loadData = async () => {
       try {
+        // Load saved sections and current page
         const savedSections = await loadSections();
         const savedPage = await loadCurrentPage();
         
-        // Find the section that contains the current page BEFORE setting state
+        // First, let's check if we have any last viewed pages saved at all
+        const lastViewedPages = await loadLastViewedPages();
+        console.log('All saved last viewed pages:', lastViewedPages);
+        
+        // Find the section that contains the current page
         const section = findSectionByPage(savedSections, savedPage);
+        
+        // Check if we have a saved "last viewed page" for this section
+        // This ensures we return to exactly where the user left off
+        const lastPageForSection = await getLastViewedPage(section);
+        
+        // Use the most recent page with validation
+        let pageToUse = lastPageForSection || savedPage;
+        
+        // Extra validation to prevent jumping to invalid pages
+        // If page is out of bounds for all sections, reset to first page
+        const lastSection = savedSections[savedSections.length - 1];
+        const totalPages = lastSection.endPage;
+        
+        if (pageToUse > totalPages) {
+          console.warn(`Saved page ${pageToUse} exceeds total pages ${totalPages}, resetting to page 1`);
+          pageToUse = 1;
+          // Also clear the corrupted value from storage
+          saveCurrentPage(1);
+        }
+        
+        // ADDITIONAL FIX: Check if we have any inconsistencies between sections
+        // If the found section doesn't match what would be expected for the saved page,
+        // this suggests data corruption - check for extreme jumps (e.g., from Manzil 2 to Manzil 7)
+        const sectionId = section.id;
+        const expectedSectionRange = [Math.max(1, sectionId - 1), Math.min(savedSections.length, sectionId + 1)];
+        
+        // Check if we're jumping more than one section - this suggests potential corruption
+        if (Math.abs(section.id - savedSections.length) > 1 && section.id === savedSections.length) {
+          console.warn(`Detected potential navigation corruption - jumping from a middle section to last section (${section.title})`);
+          
+          // Instead of loading the last section, reset to first section page 1
+          console.log(`Resetting to first section`);
+          
+          setCurrentPage(1);
+          setCurrentSection(savedSections[0]);
+          
+          // Also clear the corrupted values from storage
+          await saveCurrentPage(1);
+          return;
+        }
+        
+        // Ensure the page is valid for this section
+        const validPage = Math.max(
+          section.startPage,
+          Math.min(pageToUse, section.endPage)
+        );
+        
+        console.log(`Loading saved state - Page: ${validPage}, Section: ${section.title} (${section.startPage}-${section.endPage})`);
         
         // Set all states at once to avoid UI inconsistency
         setSections(savedSections);
-        setCurrentPage(savedPage);
-        setCurrentSection(section); // Set the correct section
-        
-        console.log(`Initial load - Page: ${savedPage}, Section: ${section.title} (${section.startPage}-${section.endPage})`);
+        setCurrentPage(validPage);
+        setCurrentSection(section);
       } catch (error) {
         console.error('Error loading data:', error);
         // Fallback to defaults if there's an error
@@ -74,15 +125,54 @@ export const useSectionNavigation = (
   const findSectionByPage = (sectionList: Section[], page: number): Section => {
     console.log(`Finding section for page ${page}`);
     
-    // First check for boundary pages (pages that are both end of one section and start of another)
+    // Safeguard against corrupted page values
+    if (!page || page < 1) {
+      console.warn(`Invalid page value: ${page}, defaulting to first section`);
+      return sectionList[0];
+    }
+    
+    // Special case: If page is past the last section's endPage, return first section instead of last
+    // This prevents jumping to the last section on app load with corrupted data
+    const lastSection = sectionList[sectionList.length - 1];
+    if (page > lastSection.endPage) {
+      console.warn(`Page ${page} is beyond all section ranges (max: ${lastSection.endPage}), defaulting to first section`);
+      // Return first section instead of last to prevent unexpected jumps to the end
+      return sectionList[0];
+    }
+    
+    // SPECIFIC FIX FOR MANZIL 7 ISSUE
+    // If this is Manzil 7 around page 15, check if this is actually a valid navigation
+    // or if it might be corruption from a previous state
+    const lastSectionId = sectionList.length;
+    const isLastSection = (section: Section) => section.id === lastSectionId;
+    const manzil7 = sectionList.find(isLastSection);
+    
+    if (manzil7 && manzil7.title.includes('Manzil 7') && 
+        page >= manzil7.startPage && page <= manzil7.endPage) {
+      
+      // Check AsyncStorage to see if we have evidence of a previous session in Manzil 2
+      // This is a heuristic to detect potentially corrupted state
+      AsyncStorage.getItem('last_known_reliable_section').then(lastReliableSection => {
+        if (lastReliableSection && parseInt(lastReliableSection) < 7) {
+          console.warn(`Potential issue detected: Jump from section ${lastReliableSection} to Manzil 7`);
+          // We don't reset here, but log the issue for debugging
+        }
+      }).catch(err => {
+        console.error('Error checking last reliable section:', err);
+      });
+      
+      // Store current section for future reference
+      AsyncStorage.setItem('last_known_reliable_section', manzil7.id.toString())
+        .catch(err => console.error('Error storing last reliable section:', err));
+    }
+    
+    // First check if we're on a boundary page that's both the end of one section and start of another
     for (let i = 0; i < sectionList.length - 1; i++) {
       const currentSection = sectionList[i];
       const nextSection = sectionList[i + 1];
       
       // If this page is both the end of current section and start of next section
       if (page === currentSection.endPage && page === nextSection.startPage) {
-        console.log(`Page ${page} is a boundary page between ${currentSection.title} and ${nextSection.title}`);
-        
         // For boundary pages, ALWAYS prefer the next section
         // This ensures pages like 22 are shown as "page 1 of Manzil 2" instead of "page 22 of Manzil 1"
         console.log(`Treating page ${page} as part of ${nextSection.title}`);
@@ -112,10 +202,11 @@ export const useSectionNavigation = (
       }
     }
     
-    // If we're past all sections, return the last section
+    // If we're past all sections, return the first section
     if (page > sectionList[sectionList.length - 1].endPage) {
-      console.log(`Page ${page} is past all sections, returning last section`);
-      return sectionList[sectionList.length - 1];
+      console.log(`Page ${page} is past all sections, returning first section instead`);
+      // Changed behavior: return first section instead of last to avoid jumping to end
+      return sectionList[0];
     }
     
     // Default to first section
@@ -141,18 +232,22 @@ export const useSectionNavigation = (
     const section = findSectionByPage(sections, page);
     console.log(`Found section for page ${page}: ${section.title} (${section.startPage}-${section.endPage})`);
     
-    // Update state and save to storage
+    // IMMEDIATELY update state to ensure UI updates fast
     setCurrentPage(page);
-    saveCurrentPage(page);
     
-    // Save this as the last viewed page for this section
-    saveLastViewedPage(section.id, page);
-    
-    // Always update the section if it's different
+    // If section changed, update it immediately too
     if (section.id !== currentSection.id) {
       console.log(`Section changed from ${currentSection.title} to ${section.title}`);
       setCurrentSection(section);
     }
+    
+    // Save data in the background - ensure we persist both current page and section-specific last viewed page
+    Promise.all([
+      saveCurrentPage(page),
+      saveLastViewedPage(section.id, page)
+    ]).catch(err => {
+      console.error('Error saving page data:', err);
+    });
     
     // Check if this is the last page of the last section
     const isLastSection = section.id === sections.length;
@@ -441,7 +536,7 @@ export const useSectionNavigation = (
   // Toggle section drawer
   const toggleSectionDrawer = () => {
     Animated.timing(sectionDrawerAnim, {
-      toValue: isSectionDrawerOpen ? -280 : 0,
+      toValue: isSectionDrawerOpen ? -330 : 0,
       duration: 300,
       useNativeDriver: true,
     }).start();

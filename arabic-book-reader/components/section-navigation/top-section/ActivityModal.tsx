@@ -7,7 +7,9 @@ import {
   TouchableOpacity,
   Animated,
   Easing,
-  Dimensions
+  Dimensions,
+  ScrollView,
+  useWindowDimensions
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, spacing, shadows } from '../../../constants/theme';
@@ -35,6 +37,7 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
   readingDays,
   currentStreak
 }) => {
+  const { width, height } = useWindowDimensions();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
 
@@ -69,6 +72,10 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
     onClose();
   };
 
+  // Calculate modal dimensions based on screen size
+  const modalWidth = Math.min(width * 0.9, 500);
+  const modalMaxHeight = height * 0.8;
+
   return (
     <Modal
       visible={visible}
@@ -89,7 +96,9 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
             styles.modalContainer,
             {
               opacity: fadeAnim,
-              transform: [{ translateY: slideAnim }]
+              transform: [{ translateY: slideAnim }],
+              width: modalWidth,
+              maxHeight: modalMaxHeight
             }
           ]}
         >
@@ -108,37 +117,36 @@ const ActivityModal: React.FC<ActivityModalProps> = ({
                 </TouchableOpacity>
               </View>
 
-              <View style={styles.contentContainer}>
-                <View style={styles.quoteContainer}>
-                  <View style={styles.quoteBox}>
-                    <Text style={styles.arabicQuote}>سَدِّدُوا وَقَارِبُوا، وَاعْلَمُوا أَنْ لَنْ يُدْخِلَ أَحَدَكُمْ عَمَلُهُ الْجَنَّةَ، وَأَنَّ أَحَبَّ الأَعْمَالِ أَدْوَمُهَا إِلَى اللَّهِ، وَإِنْ قَلَّ</Text>
-                    <Text style={styles.englishQuote}>
-                      "Be steadfast and strive for moderation, and know that none of you will enter Paradise by their deeds alone. And the most beloved deeds to Allah are{" "}
-                      <Text style={{fontWeight: 'bold'}}>those that are consistent</Text>
-                      {", even if they are few."}
-                    </Text>
-                    <Text style={styles.quoteSource}>
-                      <Text style={styles.prophetName}>Prophet Muhammad ﷺ</Text>
-                      <Text> [Bukhari]</Text>
-                    </Text>
+              <ScrollView 
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollViewContent}
+                showsVerticalScrollIndicator={false}
+              >
+                <View style={styles.contentContainer}>
+                  <View style={styles.quoteContainer}>
+                    <View style={styles.quoteBox}>
+                      <Text style={styles.arabicQuote}>سَدِّدُوا وَقَارِبُوا، وَاعْلَمُوا أَنْ لَنْ يُدْخِلَ أَحَدَكُمْ عَمَلُهُ الْجَنَّةَ، وَأَنَّ أَحَبَّ الأَعْمَالِ أَدْوَمُهَا إِلَى اللَّهِ، وَإِنْ قَلَّ</Text>
+                      <Text style={styles.englishQuote}>
+                        "Be steadfast and strive for moderation, and know that none of you will enter Paradise by their deeds alone. And the most beloved deeds to Allah are{" "}
+                        <Text style={{fontWeight: 'bold'}}>those that are consistent</Text>
+                        {", even if they are few."}
+                      </Text>
+                      <Text style={styles.quoteSource}>
+                        <Text style={styles.prophetName}>Prophet Muhammad ﷺ</Text>
+                        <Text> [Bukhari]</Text>
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.divider} />
+
+                  <View style={styles.last7DaysContainer}>
+                    <Text style={styles.sectionTitle}>Last 7 Days</Text>
+                    <Last7DaysIndicator readingDays={readingDays} />
+                    <Text style={styles.legendText}>Numbers indicate sections completed each day</Text>
                   </View>
                 </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.streakInfoContainer}>
-                  <Text style={styles.streakLabel}>Current Streak</Text>
-                  <Text style={styles.streakValue}>{currentStreak} {currentStreak === 1 ? 'Day' : 'Days'}</Text>
-                </View>
-
-                <View style={styles.divider} />
-
-                <View style={styles.last7DaysContainer}>
-                  <Text style={styles.sectionTitle}>Last 7 Days</Text>
-                  <Last7DaysIndicator readingDays={readingDays} />
-                  <Text style={styles.legendText}>Numbers indicate sections completed each day</Text>
-                </View>
-              </View>
+              </ScrollView>
             </BlurView>
           </LinearGradient>
         </Animated.View>
@@ -162,8 +170,6 @@ const styles = StyleSheet.create({
     bottom: 0,
   },
   modalContainer: {
-    width: Dimensions.get('window').width * 0.9,
-    maxWidth: 500,
     borderRadius: radius.lg,
     overflow: 'hidden',
     ...shadows.medium,
@@ -173,9 +179,11 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: 'rgba(114, 187, 225, 0.2)',
+    height: '100%',
   },
   blurView: {
     padding: spacing.lg,
+    height: '100%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -197,26 +205,14 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
+  scrollView: {
+    flex: 1,
+  },
+  scrollViewContent: {
+    flexGrow: 1,
+  },
   contentContainer: {
     paddingVertical: spacing.md,
-  },
-  streakInfoContainer: {
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  streakLabel: {
-    color: 'rgba(255, 255, 255, 0.7)',
-    fontSize: fonts.size.md,
-    marginBottom: spacing.xs,
-  },
-  streakValue: {
-    color: colors.primary.sky,
-    fontSize: fonts.size.xxl,
-    fontWeight: 'bold',
-    fontFamily: fonts.boldFamily,
-    textShadowColor: 'rgba(114, 187, 225, 0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
   },
   divider: {
     height: 1,
@@ -225,6 +221,7 @@ const styles = StyleSheet.create({
   },
   last7DaysContainer: {
     alignItems: 'center',
+    width: '100%',
   },
   sectionTitle: {
     color: colors.primary.white,

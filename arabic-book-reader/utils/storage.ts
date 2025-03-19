@@ -47,7 +47,16 @@ export const loadCurrentPage = async (): Promise<number> => {
   try {
     const value = await AsyncStorage.getItem(CURRENT_PAGE_STORAGE_KEY);
     if (value !== null) {
-      return parseInt(value, 10);
+      const parsedPage = parseInt(value, 10);
+      
+      // Validate page number is in a reasonable range
+      // This prevents corrupted values from causing navigation issues
+      if (!isNaN(parsedPage) && parsedPage >= 1 && parsedPage <= 150) {
+        return parsedPage;
+      } else {
+        console.warn(`Invalid saved page value: ${value}, defaulting to page 1`);
+        return 1;
+      }
     }
     return 1; // Return first page if none is saved
   } catch (error) {
@@ -96,6 +105,21 @@ export const saveLastViewedPage = async (sectionId: number, page: number): Promi
     const section = sections.find(s => s.id === sectionId);
     
     if (section) {
+      // Additional validation for extreme jumps in section navigation
+      // If we're jumping to Manzil 7 from a lower section, log it for debugging
+      if (section.title.includes('Manzil 7')) {
+        console.log(`Saving page ${page} as last viewed for Manzil 7`);
+        
+        // Check if we're seeing a large jump in section navigation
+        const currentSectionId = await AsyncStorage.getItem('current_section_id');
+        if (currentSectionId && parseInt(currentSectionId) < 6) {
+          console.warn(`Unusual section navigation detected: Jump from section ${currentSectionId} to Manzil 7`);
+        }
+        
+        // Update tracking of current section
+        await AsyncStorage.setItem('current_section_id', sectionId.toString());
+      }
+      
       // Only save if page is within this section's range
       if (page >= section.startPage && page <= section.endPage) {
         console.log(`Saving page ${page} as last viewed for section ${sectionId} (${section.title})`);
@@ -122,7 +146,18 @@ export const saveLastViewedPage = async (sectionId: number, page: number): Promi
 export const getLastViewedPage = async (section: Section): Promise<number> => {
   try {
     const lastViewedPages = await loadLastViewedPages();
-    return lastViewedPages[section.id] || section.startPage;
+    const savedPage = lastViewedPages[section.id];
+    
+    // Validate the saved page is within this section's range
+    if (savedPage !== undefined && 
+        savedPage >= section.startPage && 
+        savedPage <= section.endPage) {
+      return savedPage;
+    } else if (savedPage !== undefined) {
+      console.warn(`Saved page ${savedPage} for section ${section.id} is outside valid range (${section.startPage}-${section.endPage}), resetting to section start page`);
+    }
+    
+    return section.startPage;
   } catch (error) {
     console.error('Error getting last viewed page:', error);
     return section.startPage; // Return section start page on error

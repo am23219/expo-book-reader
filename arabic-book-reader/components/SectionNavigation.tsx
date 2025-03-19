@@ -48,7 +48,7 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   const completionAnimationRef = useRef<CompletionAnimationRef>(null);
   
   // Reading streak integration
-  const [readingStreakData, updateStreak] = useReadingStreak();
+  const [readingStreakData, updateStreak, updateNextUpProgress] = useReadingStreak();
   const [showStreakNotification, setShowStreakNotification] = useState(false);
   const [activityModalVisible, setActivityModalVisible] = useState(false);
   
@@ -140,6 +140,15 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
   // Add state for calendar modal
   const [calendarModalVisible, setCalendarModalVisible] = useState(false);
   
+  // Add a timestamp state to trigger refreshes when pages change
+  const [refreshTimestamp, setRefreshTimestamp] = useState(Date.now());
+  
+  // Refresh the sections when currentSectionId changes or when returning to the screen
+  useEffect(() => {
+    // Update the timestamp to trigger a refresh of section items
+    setRefreshTimestamp(Date.now());
+  }, [currentSectionId]);
+  
   const handleToggleComplete = async (sectionId: number, isCompleted: boolean) => {
     // More noticeable haptic feedback for completion
     if (!isCompleted) {
@@ -156,6 +165,24 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
       
       // Update reading streak when completing a section
       await updateStreak();
+      
+      // Get the section being completed
+      const section = sections.find(s => s.id === sectionId);
+      if (section) {
+        // Update NextUp widget with completion status - in a safe way
+        try {
+          const totalPages = section.endPage - section.startPage + 1;
+          await updateNextUpProgress(
+            sectionId,
+            totalPages, // Set to total pages to show complete
+            totalPages,
+            true // Section is now completed
+          ).catch(err => console.log('Widget update silently failed:', err));
+        } catch (error) {
+          // Don't let widget errors crash the app
+          console.log('Widget update failed, continuing anyway:', error);
+        }
+      }
     } else {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     }
@@ -240,6 +267,7 @@ const SectionNavigation: React.FC<SectionNavigationProps> = ({
               animatedValue={animatedValues[index]}
               onPress={() => handlePress(index, section)}
               onToggleComplete={async () => await handleToggleComplete(section.id, section.isCompleted)}
+              refreshTimestamp={refreshTimestamp}
             />
           ))}
           
