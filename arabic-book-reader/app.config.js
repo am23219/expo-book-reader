@@ -1,7 +1,7 @@
 module.exports = {
   name: "Barakaat Makkiyyah",
   slug: "arabic-book-reader",
-  version: "1.0.7",
+  version: "1.0.8",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
@@ -67,7 +67,6 @@ module.exports = {
     }
   },
   assetBundlePatterns: [
-    "assets/pdf/Barakaat_Makiyyah.pdf",
     "assets/images/*",
     "assets/fonts/*",
     "assets/audio/*",
@@ -76,7 +75,7 @@ module.exports = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.honeysystems.barakaatmakiyyah",
-    buildNumber: "10",
+    buildNumber: "12",
     infoPlist: {
       UIBackgroundModes: ["remote-notification"],
       ITSAppUsesNonExemptEncryption: false
@@ -88,7 +87,7 @@ module.exports = {
       backgroundColor: "#ffffff"
     },
     package: "com.honeysystems.barakaatmakiyyah",
-    versionCode: 8,
+    versionCode: 13,
     permissions: ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
     jsEngine: "hermes"
   },
@@ -99,15 +98,5 @@ module.exports = {
     eas: {
       projectId: "dd28f021-7e74-410e-b5d0-615e73b491ee"
     }
-  },
-  build: {
-    development: {
-      developmentClient: true,
-      distribution: "internal"
-    },
-    preview: {
-      distribution: "internal"
-    },
-    production: {}
   }
 }; 

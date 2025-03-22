@@ -1,74 +1,17 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Dimensions, Animated, Image } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import Pdf from 'react-native-pdf';
 import { GestureHandlerRootView, PanGestureHandler, State } from 'react-native-gesture-handler';
-import * as FileSystem from 'expo-file-system';
 
-const PDFReaderComponent = ({ pdfPath, title = "بركات مكية" }) => {
+const PDFReaderComponent = ({ images, title = "بركات مكية" }) => {
   const [pageNumber, setPageNumber] = useState(1);
-  const [numPages, setNumPages] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [numPages, setNumPages] = useState(images?.length || 0);
+  const [isLoading, setIsLoading] = useState(false);
   const [scale, setScale] = useState(1.0);
-  const [pdfSource, setPdfSource] = useState(null);
-  const pdfRef = useRef(null);
   const pageTranslateX = useRef(new Animated.Value(0)).current;
-
-  // Initialize PDF source
-  React.useEffect(() => {
-    // Try different ways to load the PDF
-    const loadPDF = async () => {
-      try {
-        // Method 1: Try using require for bundled assets
-        const source = { uri: 'bundle-assets://assets/pdf/Barakaat_Makiyyah.pdf' };
-        setPdfSource(source);
-      } catch (error) {
-        console.error("Could not load PDF with method 1:", error);
-        
-        try {
-          // Method 2: Try using asset://
-          const source = { uri: 'asset:///assets/pdf/Barakaat_Makiyyah.pdf' };
-          setPdfSource(source);
-        } catch (error) {
-          console.error("Could not load PDF with method 2:", error);
-          
-          try {
-            // Method 3: Try using file path
-            const fileExists = await FileSystem.getInfoAsync(FileSystem.documentDirectory + 'Barakaat_Makiyyah.pdf');
-            if (fileExists.exists) {
-              const source = { uri: FileSystem.documentDirectory + 'Barakaat_Makiyyah.pdf' };
-              setPdfSource(source);
-            } else {
-              // Method 4: Final fallback - use a direct path
-              setPdfSource({ uri: 'file:///android_asset/Barakaat_Makiyyah.pdf' });
-            }
-          } catch (finalError) {
-            console.error("All PDF loading methods failed:", finalError);
-          }
-        }
-      }
-    };
-
-    loadPDF();
-  }, []);
 
   // Calculate progress percentage for progress bar
   const progressPercentage = numPages ? (pageNumber / numPages) * 100 : 0;
-
-  const handleLoadComplete = (numberOfPages, filePath) => {
-    console.log(`PDF loaded successfully with ${numberOfPages} pages`);
-    setNumPages(numberOfPages);
-    setIsLoading(false);
-  };
-
-  const handleError = (error) => {
-    console.error('Error loading PDF:', error);
-    setIsLoading(false);
-    // Try an alternative source if loading fails
-    if (pdfSource && pdfSource.uri.includes('bundle-assets://')) {
-      setPdfSource({ uri: 'file:///android_asset/Barakaat_Makiyyah.pdf' });
-    }
-  };
 
   const goToPrevPage = () => {
     if (pageNumber > 1) {
@@ -87,7 +30,6 @@ const PDFReaderComponent = ({ pdfPath, title = "بركات مكية" }) => {
       ]).start();
       
       setPageNumber(pageNumber - 1);
-      pdfRef.current?.setPage(pageNumber - 1);
     }
   };
 
@@ -108,7 +50,6 @@ const PDFReaderComponent = ({ pdfPath, title = "بركات مكية" }) => {
       ]).start();
       
       setPageNumber(pageNumber + 1);
-      pdfRef.current?.setPage(pageNumber + 1);
     }
   };
 
@@ -183,76 +124,67 @@ const PDFReaderComponent = ({ pdfPath, title = "بركات مكية" }) => {
           </View>
         )}
         
-        {pdfSource && (
-          <PanGestureHandler
-            onGestureEvent={onGestureEvent}
-            onHandlerStateChange={onHandlerStateChange}
+        <PanGestureHandler
+          onGestureEvent={onGestureEvent}
+          onHandlerStateChange={onHandlerStateChange}
+        >
+          <Animated.View 
+            style={[
+              styles.pdfWrapper,
+              { transform: [{ translateX: pageTranslateX }] }
+            ]}
           >
-            <Animated.View 
-              style={[
-                styles.pdfWrapper,
-                { transform: [{ translateX: pageTranslateX }] }
-              ]}
-            >
-              <View style={styles.pageWithBorder}>
-                <Pdf
-                  ref={pdfRef}
-                  source={pdfSource}
-                  onLoadComplete={handleLoadComplete}
-                  onError={handleError}
-                  onPageChanged={(page) => setPageNumber(page)}
-                  scale={scale}
-                  spacing={0}
-                  horizontal={false}
-                  page={pageNumber}
-                  enablePaging={true}
-                  style={styles.pdf}
-                  trustAllCerts={false}
-                  renderActivityIndicator={() => <ActivityIndicator color="#0099cc" />}
+            <View style={styles.pageWithBorder}>
+              {/* Display image for current page */}
+              {images && images[pageNumber - 1] && (
+                <Image
+                  source={images[pageNumber - 1]}
+                  style={[styles.pdf, { transform: [{ scale }] }]}
+                  resizeMode="contain"
                 />
+              )}
+              
+              {/* Enhanced Islamic Border Overlay - much closer to the image */}
+              <View style={styles.islamicBorder}>
+                {/* Main border frame */}
+                <View style={styles.borderFrame} />
                 
-                {/* Enhanced Islamic Border Overlay - much closer to the image */}
-                <View style={styles.islamicBorder}>
-                  {/* Main border frame */}
-                  <View style={styles.borderFrame} />
-                  
-                  {/* Islamic pattern trim around the edge */}
-                  <View style={styles.patternTopContainer}>
-                    {Array.from({ length: 15 }).map((_, i) => (
-                      <View key={`top-pattern-${i}`} style={styles.patternTriangle} />
-                    ))}
-                  </View>
-                  <View style={styles.patternRightContainer}>
-                    {Array.from({ length: 20 }).map((_, i) => (
-                      <View key={`right-pattern-${i}`} style={[styles.patternTriangle, styles.patternRight]} />
-                    ))}
-                  </View>
-                  <View style={styles.patternBottomContainer}>
-                    {Array.from({ length: 15 }).map((_, i) => (
-                      <View key={`bottom-pattern-${i}`} style={[styles.patternTriangle, styles.patternBottom]} />
-                    ))}
-                  </View>
-                  <View style={styles.patternLeftContainer}>
-                    {Array.from({ length: 20 }).map((_, i) => (
-                      <View key={`left-pattern-${i}`} style={[styles.patternTriangle, styles.patternLeft]} />
-                    ))}
-                  </View>
-                  
-                  {/* Ornamental corners */}
-                  <View style={[styles.corner, styles.cornerTL]} />
-                  <View style={[styles.corner, styles.cornerTR]} />
-                  <View style={[styles.corner, styles.cornerBL]} />
-                  <View style={[styles.corner, styles.cornerBR]} />
-                  
-                  {/* Page number badge */}
-                  <View style={styles.pageNumberBadge}>
-                    <Text style={styles.pageNumberText}>{pageNumber}</Text>
-                  </View>
+                {/* Islamic pattern trim around the edge */}
+                <View style={styles.patternTopContainer}>
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <View key={`top-pattern-${i}`} style={styles.patternTriangle} />
+                  ))}
+                </View>
+                <View style={styles.patternRightContainer}>
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <View key={`right-pattern-${i}`} style={[styles.patternTriangle, styles.patternRight]} />
+                  ))}
+                </View>
+                <View style={styles.patternBottomContainer}>
+                  {Array.from({ length: 15 }).map((_, i) => (
+                    <View key={`bottom-pattern-${i}`} style={[styles.patternTriangle, styles.patternBottom]} />
+                  ))}
+                </View>
+                <View style={styles.patternLeftContainer}>
+                  {Array.from({ length: 20 }).map((_, i) => (
+                    <View key={`left-pattern-${i}`} style={[styles.patternTriangle, styles.patternLeft]} />
+                  ))}
+                </View>
+                
+                {/* Ornamental corners */}
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerTR]} />
+                <View style={[styles.corner, styles.cornerBL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
+                
+                {/* Page number badge */}
+                <View style={styles.pageNumberBadge}>
+                  <Text style={styles.pageNumberText}>{pageNumber}</Text>
                 </View>
               </View>
-            </Animated.View>
-          </PanGestureHandler>
-        )}
+            </View>
+          </Animated.View>
+        </PanGestureHandler>
         
         {/* Page turn buttons */}
         <TouchableOpacity 

@@ -9,6 +9,9 @@ buildscript {
         kotlinVersion = findProperty('android.kotlinVersion') ?: '1.9.25'
 
         ndkVersion = "26.1.10909125"
+        
+        // Updated 16KB page size support config
+        abiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
     }
     repositories {
         google()
@@ -37,5 +40,12 @@ allprojects {
         google()
         mavenCentral()
         maven { url 'https://www.jitpack.io' }
+    }
+
+    // Fix for duplicate class errors
+    configurations.all {
+        resolutionStrategy {
+            force "com.facebook.react:react-native:0.76.7"
+        }
     }
 }

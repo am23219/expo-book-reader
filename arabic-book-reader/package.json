@@ -1,7 +1,7 @@
 {
   "name": "barakaat-makkiyyah",
   "main": "index.js",
-  "version": "1.0.6",
+  "version": "1.0.8",
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -47,7 +47,7 @@
     "expo-symbols": "~0.2.2",
     "expo-system-ui": "~4.0.8",
     "expo-web-browser": "~14.0.2",
-    "lottie-react-native": "^7.2.2",
+    "lottie-react-native": "7.1.0",
     "module-resolver": "^1.0.0",
     "react": "18.3.1",
     "react-dom": "18.3.1",

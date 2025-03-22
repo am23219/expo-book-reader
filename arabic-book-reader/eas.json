@@ -13,7 +13,21 @@
       "distribution": "internal"
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "node": "20.0.0",
+      "env": {
+        "ENVIRONMENT": "production"
+      }
+    },
+    "production-local": {
+      "autoIncrement": true,
+      "extends": "production",
+      "android": {
+        "buildType": "apk"
+      },
+      "ios": {
+        "buildConfiguration": "Release"
+      }
     },
     "development-simulator": {
       "developmentClient": true,
@@ -34,6 +48,10 @@
     "production": {
       "ios": {
         "ascAppId": "6743355904"
+      },
+      "android": {
+        "serviceAccountKeyPath": "barakaat-makiyyah-service-account.json",
+        "track": "production"
       }
     }
   }

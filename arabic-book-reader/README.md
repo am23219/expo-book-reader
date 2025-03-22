@@ -1,6 +1,6 @@
 # Barakat Makiyyah Arabic Book Reader
 
-An elegant, Islamic-styled PDF reader app specifically designed for reading Arabic books with right-to-left swiping navigation.
+An elegant, Islamic-styled book reader app specifically designed for reading Arabic books with right-to-left swiping navigation.
 
 ## Features
 
@@ -23,17 +23,16 @@ npm install
 npm start
 ```
 
-## PDF File
+## Image Files
 
-This app is specifically designed to display the "Barakat Makiyyah" PDF. The PDF file should be placed in:
+This app is specifically designed to display the "Barakat Makiyyah" book as a series of page images. The page images should be placed in:
 ```
-assets/pdf/Barakaat_Makiyyah.pdf
+assets/images/pages/
 ```
 
 ## Dependencies
 
 - react-native
-- react-native-pdf
 - react-native-gesture-handler
 - @expo/vector-icons
 - expo-font
@@ -41,7 +40,7 @@ assets/pdf/Barakaat_Makiyyah.pdf
 
 ## Usage
 
-The app automatically loads the Barakat Makiyyah PDF. You can navigate through the book using:
+The app automatically loads the Barakat Makiyyah page images. You can navigate through the book using:
 
 - **Swipe Left/Right**: Turn pages
 - **Tap Left/Right Edges**: Turn pages
@@ -50,9 +49,9 @@ The app automatically loads the Barakat Makiyyah PDF. You can navigate through t
 
 ## Customization
 
-To use a different PDF or change the styling:
+To use different images or change the styling:
 
-1. Replace the PDF file in `assets/pdf/`
+1. Replace the image files in `assets/images/pages/`
 2. Update the book title in `App.js`
 3. Modify the colors in the styles section of `PDFReaderComponent.js`
 
