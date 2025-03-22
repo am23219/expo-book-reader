@@ -32,9 +32,14 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
+.env.*
 .env*.local
 
 # typescript
 *.tsbuildinfo
 
 app-example
+
+# Service account
+*-service-account.json

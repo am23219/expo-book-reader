@@ -5,9 +5,10 @@
  * This component manages section navigation, reading progress, streak tracking, and khatm completion.
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { StyleSheet, View, Alert, Modal, Animated, TouchableWithoutFeedback } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // -----------------------------
 // Components
@@ -34,16 +35,15 @@ import { usePdfViewer } from '../hooks/usePdfViewer';
 // Models and Utils
 // -----------------------------
 import { SECTIONS, Section } from '../models/Section';
+import { clearAllData } from '../utils/storage';
 import { colors } from '../constants/theme';
-import { storageService } from '../utils/storageService';
 
-// Define props for initial navigation state
-interface BookPageProps {
-  initialSection: Section;
-  initialPage: number;
-}
+// -----------------------------
+// Screens
+// -----------------------------
+import ReminderSettingsScreen from './ReminderSettings';
 
-export default function BookPage({ initialSection, initialPage }: BookPageProps) {
+export default function BookPage() {
   // -----------------------------
   // State & Hooks Initialization
   // -----------------------------
@@ -134,31 +134,19 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
   );
   
   // -----------------------------
-  // Set Initial Section and Page
-  // -----------------------------
-  // When the component mounts, update the section navigation state with the initial props.
-  useEffect(() => {
-    // Assumes that sectionActions provides setter methods
-    // sectionActions.setCurrentSection(initialSection);
-    // sectionActions.setCurrentPage(initialPage);
-    
-    // Using the available methods instead
-    sectionActions.handleSectionPress(initialSection);
-    sectionActions.handlePageChange(initialPage);
-  }, [initialSection, initialPage]);
-  
-  // -----------------------------
   // Effects
   // -----------------------------
   // Save the current book title for the widget and update NextUp widget
   useEffect(() => {
     const saveCurrentBookTitle = async () => {
       try {
-        await storageService.saveCurrentBookTitle('Barakat Makkiyyah');
+        // Save the book title to AsyncStorage
+        await AsyncStorage.setItem('current_book_title', 'Barakat Makkiyyah');
       } catch (error) {
         console.error('Error saving current book title:', error);
       }
     };
+    
     saveCurrentBookTitle();
   }, []);
   
@@ -166,11 +154,14 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
   useEffect(() => {
     const updateNextUpWidget = async () => {
       try {
+        // Slight delay to ensure app is fully initialized
         setTimeout(async () => {
           try {
             const totalPages = sectionData.currentSection.endPage - sectionData.currentSection.startPage + 1;
             const currentPageInSection = sectionData.currentPage - sectionData.currentSection.startPage + 1;
-            const storedBookTitle = await storageService.getCurrentBookTitle();
+            // Get the book title from AsyncStorage or use default
+            const storedBookTitle = await AsyncStorage.getItem('current_book_title') || "Barakaat Makkiyyah";
+            
             await updateNextUpProgress(
               sectionData.currentSection.id,
               currentPageInSection,
@@ -179,15 +170,23 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
               storedBookTitle
             );
           } catch (error) {
+            // Silently handle widget errors - don't crash the app
             console.error('Error updating NextUp widget (delayed):', error);
           }
-        }, 2000);
+        }, 2000); // 2-second delay to avoid launch issues
       } catch (error) {
+        // Silently handle any errors
         console.error('Error setting up widget update:', error);
       }
     };
+    
     updateNextUpWidget();
   }, [sectionData.currentPage, sectionData.currentSection]);
+  
+  // Commenting out notification initialization for now
+  // React.useEffect(() => {
+  //   notificationActions.initializeNotifications();
+  // }, []);
   
   // -----------------------------
   // Event Handlers
@@ -195,15 +194,24 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
   // Handle data reset and app refresh
   const handleReset = async () => {
     try {
-      await storageService.clearAllData();
+      // Clear all stored data
+      await clearAllData();
+      
+      // Reset state to defaults - ensure completionDate is cleared too
       const resetSections = SECTIONS.map(section => ({
         ...section,
         isCompleted: false,
         completionDate: undefined
       }));
+      
       sectionActions.setSections(resetSections);
+      
+      // Close the section drawer
       sectionActions.toggleSectionDrawer();
+      
       console.log('All data has been reset to defaults');
+      
+      // Show confirmation
       alert('Data has been reset to defaults');
     } catch (error) {
       console.error('Error resetting data:', error);
@@ -223,6 +231,8 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
         title="Barakaat Makkiyyah"
         subtitle={sectionData.currentSection.title}
         onMenuPress={sectionActions.toggleSectionDrawer}
+        // Commenting out notification functionality for now
+        // onReminderPress={notificationActions.toggleReminderSettings}
         currentPage={sectionData.currentPage}
         startPage={sectionData.currentSection.startPage}
         endPage={sectionData.currentSection.endPage}
@@ -279,6 +289,7 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
         sections={sectionData.sections}
       />
       
+      {/* Regular Reading Streak Notification (for manual manzil completion) */}
       <ReadingStreakNotification 
         visible={khatmData.showNotification}
         title={khatmData.notificationData.title}
@@ -296,6 +307,7 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
         rewardPoints={khatmData.notificationData.isKhatm ? 500 + (streakData.currentStreak * 20) : 50}
       />
       
+      {/* Reading Manzil Completion Notification (for automatic manzil completion) */}
       <ReadingManzilCompletionNotification
         visible={showReadingManzilCompletion}
         title={readingManzilCompletionData.title}
@@ -307,6 +319,18 @@ export default function BookPage({ initialSection, initialPage }: BookPageProps)
         level={Math.floor(streakData.currentStreak / 7) + 1}
         rankLabel={`Level ${Math.floor(streakData.currentStreak / 7) + 1} Reciter`}
       />
+      
+      {/* Commenting out notification screen for now
+      <Modal
+        visible={notificationState.showReminderSettings}
+        animationType="slide"
+        transparent={true}
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <ReminderSettingsScreen onClose={notificationActions.toggleReminderSettings} />
+        </View>
+      </Modal>
+      */}
     </View>
   );
 }

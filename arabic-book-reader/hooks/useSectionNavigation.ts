@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Section } from '../models/Section';
-import { storageService } from '../utils/storageService';
+import { loadSections, saveSections, loadCurrentPage, saveCurrentPage, saveLastViewedPage, getLastViewedPage, loadLastViewedPages } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
 import useCompletedSections from './useCompletedSections';
 
@@ -48,39 +48,19 @@ export const useSectionNavigation = (
     const loadData = async () => {
       try {
         // Load saved sections and current page
-        const savedSections = await storageService.loadSections();
-        const savedPage = await storageService.loadCurrentPage();
-        
-        // Safety check: If savedPage is referencing the last page of the last manzil (or beyond),
-        // reset to first page of first manzil to avoid always opening on last page
-        const lastManzil = savedSections[savedSections.length - 1];
-        if (savedPage >= lastManzil.endPage - 3) {
-          console.warn(`App trying to open near the end of the last manzil (page ${savedPage}). Resetting to first page.`);
-          setCurrentPage(1);
-          setCurrentSection(savedSections[0]);
-          await storageService.saveCurrentPage(1);
-          return;
-        }
+        const savedSections = await loadSections();
+        const savedPage = await loadCurrentPage();
         
         // First, let's check if we have any last viewed pages saved at all
-        const lastViewedPages = await storageService.loadLastViewedPages();
+        const lastViewedPages = await loadLastViewedPages();
         console.log('All saved last viewed pages:', lastViewedPages);
-        
-        // Check if we have a valid page saved, if not default to first page of first manzil
-        if (!savedPage || savedPage > savedSections[savedSections.length - 1].endPage) {
-          console.log('No valid page found, defaulting to first page of first manzil');
-          setCurrentPage(1);
-          setCurrentSection(savedSections[0]);
-          await storageService.saveCurrentPage(1);
-          return;
-        }
         
         // Find the section that contains the current page
         const section = findSectionByPage(savedSections, savedPage);
         
         // Check if we have a saved "last viewed page" for this section
         // This ensures we return to exactly where the user left off
-        const lastPageForSection = await storageService.getLastViewedPage(section);
+        const lastPageForSection = await getLastViewedPage(section);
         
         // Use the most recent page with validation
         let pageToUse = lastPageForSection || savedPage;
@@ -94,7 +74,7 @@ export const useSectionNavigation = (
           console.warn(`Saved page ${pageToUse} exceeds total pages ${totalPages}, resetting to page 1`);
           pageToUse = 1;
           // Also clear the corrupted value from storage
-          storageService.saveCurrentPage(1);
+          saveCurrentPage(1);
         }
         
         // ADDITIONAL FIX: Check if we have any inconsistencies between sections
@@ -114,7 +94,7 @@ export const useSectionNavigation = (
           setCurrentSection(savedSections[0]);
           
           // Also clear the corrupted values from storage
-          await storageService.saveCurrentPage(1);
+          await saveCurrentPage(1);
           return;
         }
         
@@ -170,9 +150,10 @@ export const useSectionNavigation = (
     if (manzil7 && manzil7.title.includes('Manzil 7') && 
         page >= manzil7.startPage && page <= manzil7.endPage) {
       
-      // Use storageService instead of direct AsyncStorage calls
-      storageService.getLastKnownReliableSection().then(lastReliableSection => {
-        if (lastReliableSection && lastReliableSection < 7) {
+      // Check AsyncStorage to see if we have evidence of a previous session in Manzil 2
+      // This is a heuristic to detect potentially corrupted state
+      AsyncStorage.getItem('last_known_reliable_section').then(lastReliableSection => {
+        if (lastReliableSection && parseInt(lastReliableSection) < 7) {
           console.warn(`Potential issue detected: Jump from section ${lastReliableSection} to Manzil 7`);
           // We don't reset here, but log the issue for debugging
         }
@@ -181,7 +162,7 @@ export const useSectionNavigation = (
       });
       
       // Store current section for future reference
-      storageService.saveLastKnownReliableSection(manzil7.id)
+      AsyncStorage.setItem('last_known_reliable_section', manzil7.id.toString())
         .catch(err => console.error('Error storing last reliable section:', err));
     }
     
@@ -260,23 +241,13 @@ export const useSectionNavigation = (
       setCurrentSection(section);
     }
     
-    // Update last viewed page for the current section to maintain reading position
-    const updateLastViewedPage = async () => {
-      try {
-        // Section starting pages should be recorded even if we're navigating past them
-        // This ensures that when we return to a section, we start at the correct page
-        if (!isDirectNavigation.current) {
-          await storageService.saveLastViewedPage(currentSection.id, page);
-        }
-        
-        // Save current page for app resume
-        await storageService.saveCurrentPage(page);
-      } catch (error) {
-        console.error('Error saving page state:', error);
-      }
-    };
-    
-    updateLastViewedPage();
+    // Save data in the background - ensure we persist both current page and section-specific last viewed page
+    Promise.all([
+      saveCurrentPage(page),
+      saveLastViewedPage(section.id, page)
+    ]).catch(err => {
+      console.error('Error saving page data:', err);
+    });
     
     // Check if this is the last page of the last section
     const isLastSection = section.id === sections.length;
@@ -458,7 +429,7 @@ export const useSectionNavigation = (
       toggleSectionDrawer();
     } else {
       // Only get last viewed page for incomplete sections
-      storageService.getLastViewedPage(section).then(lastViewedPage => {
+      getLastViewedPage(section).then(lastViewedPage => {
         console.log(`Retrieved last viewed page for ${section.title}: ${lastViewedPage}`);
         
         // Validate that the retrieved page actually belongs to this section
@@ -487,85 +458,79 @@ export const useSectionNavigation = (
   
   // Handle section completion
   const handleSectionCompletion = async (section: Section, completionMethod?: 'automatic' | 'manual') => {
-    try {
-      // Mark the section as completed with the current date
-      const updatedSections = [...sections];
-      const sectionIndex = updatedSections.findIndex(s => s.id === section.id);
-      
-      if (sectionIndex !== -1) {
-        // Only update if not already completed to avoid overwriting completion date
-        if (!updatedSections[sectionIndex].isCompleted) {
-          updatedSections[sectionIndex] = {
-            ...updatedSections[sectionIndex],
-            isCompleted: true,
-            completionDate: new Date()
-          };
-          
-          // Update state
-          setSections(updatedSections);
-          
-          // Save to storage
-          await storageService.saveSections(updatedSections);
-          
-          // Add to completed sections history - cast as any to bypass type check
-          // since we're using a subset of the Section properties
-          if (addCompletedSection) {
-            addCompletedSection(updatedSections[sectionIndex]);
-          }
-          
-          // Call the callback if provided
-          if (onSectionComplete) {
-            await onSectionComplete(section, completionMethod);
-          }
-          
-          // Vibrate to indicate completion
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
-      }
-    } catch (error) {
-      console.error('Error completing section:', error);
-    }
+    console.log(`Section ${section.title} completed! Method: ${completionMethod || 'automatic'}`);
+    
+    // Default to automatic if not specified
+    const method = completionMethod || 'automatic';
+    
+    // Get current date for completion timestamp
+    const completionDate = new Date();
+    
+    // Update sections with completion date and method
+    const updatedSections = sections.map(s => 
+      s.id === section.id ? { 
+        ...s, 
+        isCompleted: true, 
+        completionDate,
+        completionMethod: method
+      } : s
+    );
+    
+    // Save to storage
+    setSections(updatedSections);
+    saveSections(updatedSections);
+    
+    // Save to completed sections for calendar view
+    await addCompletedSection({
+      ...section,
+      isCompleted: true,
+      completionDate,
+      completionMethod: method
+    });
+    
+    // Call the onSectionComplete callback with the completionMethod
+    await onSectionComplete(section, method);
   };
   
   // Toggle section completion status
   const handleToggleComplete = async (sectionId: number) => {
-    try {
-      const updatedSections = [...sections];
-      const sectionIndex = updatedSections.findIndex(s => s.id === sectionId);
+    const section = sections.find(s => s.id === sectionId);
+    const wasCompleted = section?.isCompleted || false;
+    
+    if (!section) return;
+    
+    const now = new Date();
+    
+    const updatedSections = sections.map(s => 
+      s.id === sectionId 
+        ? { 
+            ...s, 
+            isCompleted: !s.isCompleted,
+            // Clear completionDate if toggling from completed to incomplete
+            completionDate: !s.isCompleted ? now : undefined,
+            // Set completion method to manual when toggling in navigation
+            completionMethod: !s.isCompleted ? 'manual' as const : undefined
+          } 
+        : s
+    );
+    
+    // If toggling to completed, add to completed sections for calendar
+    if (!wasCompleted) {
+      await addCompletedSection({
+        ...section,
+        isCompleted: true,
+        completionDate: now,
+        completionMethod: 'manual' as const
+      });
       
-      if (sectionIndex !== -1) {
-        // Toggle completion status
-        const isNowCompleted = !updatedSections[sectionIndex].isCompleted;
-        
-        updatedSections[sectionIndex] = {
-          ...updatedSections[sectionIndex],
-          isCompleted: isNowCompleted,
-          completionDate: isNowCompleted ? new Date() : undefined
-        };
-        
-        // Update state
-        setSections(updatedSections);
-        
-        // Save to storage
-        await storageService.saveSections(updatedSections);
-        
-        // Add to completed sections history if newly completed
-        if (isNowCompleted && addCompletedSection) {
-          // Use the full section object instead of a partial one
-          addCompletedSection(updatedSections[sectionIndex]);
-          
-          // Call the completion callback if provided
-          if (onSectionComplete) {
-            await onSectionComplete(updatedSections[sectionIndex], 'manual');
-          }
-          
-          // Vibrate to indicate completion
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        }
+      // Call onSectionComplete to trigger modals for manzil completion
+      if (section.title.includes('Manzil')) {
+        await onSectionComplete(section, 'manual');
       }
-    } catch (error) {
-      console.error('Error toggling section completion:', error);
     }
+    
+    setSections(updatedSections);
+    saveSections(updatedSections);
   };
   
   // Toggle section drawer
