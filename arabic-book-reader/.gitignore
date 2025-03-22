@@ -43,3 +43,6 @@ app-example
 
 # Service account
 *-service-account.json
+
+# Ignore paths outside the repository
+../fresh_repo/
