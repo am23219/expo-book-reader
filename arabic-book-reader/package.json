@@ -28,6 +28,7 @@
     "@react-native-community/datetimepicker": "8.2.0",
     "@react-navigation/bottom-tabs": "^7.2.0",
     "@react-navigation/native": "^7.0.14",
+    "date-fns": "^4.1.0",
     "dotenv": "^16.4.7",
     "eas": "^0.1.0",
     "expo": "^52.0.39",
