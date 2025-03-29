@@ -35,7 +35,7 @@ import { usePdfViewer } from '../hooks/usePdfViewer';
 // Models and Utils
 // -----------------------------
 import { SECTIONS, Section } from '../models/Section';
-import { storage } from '../utils/storage';
+import { clearAllData } from '../utils/storage';
 import { colors } from '../constants/theme';
 
 // -----------------------------
@@ -195,7 +195,7 @@ export default function BookPage() {
   const handleReset = async () => {
     try {
       // Clear all stored data
-      await storage.clearAllData();
+      await clearAllData();
       
       // Reset state to defaults - ensure completionDate is cleared too
       const resetSections = SECTIONS.map(section => ({

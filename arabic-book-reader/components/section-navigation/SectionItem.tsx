@@ -5,7 +5,7 @@ import { Section } from '../../models/Section';
 import { colors, fonts, spacing, radius, shadows } from '../../constants/theme';
 import { formatCompletionDate } from '../../utils/dateFormatters';
 import { LinearGradient } from 'expo-linear-gradient';
-import { storage } from '../../utils/storage';
+import { loadLastViewedPages } from '../../utils/storage';
 
 interface SectionItemProps {
   section: Section;
@@ -38,7 +38,7 @@ const SectionItem: React.FC<SectionItemProps> = ({
   useEffect(() => {
     const checkSavedPage = async () => {
       try {
-        const lastViewedPages = await storage.loadLastViewedPages();
+        const lastViewedPages = await loadLastViewedPages();
         const savedPage = lastViewedPages[section.id];
         
         // Debug logging for Manzil 7 issue
