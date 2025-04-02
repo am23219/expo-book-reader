@@ -1,7 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import Constants from 'expo-constants';
 import { NOTIFICATION_TOKEN_KEY, DEVICE_IDENTIFIER_KEY, NotificationSubscriptions } from './types';
 
@@ -65,9 +64,8 @@ export async function registerForPushNotificationsAsync() {
           console.log('Using fallback token mechanism');
         }
         
-        // Save token to AsyncStorage
+        // Log token
         if (token) {
-          await AsyncStorage.setItem(NOTIFICATION_TOKEN_KEY, token);
           console.log('Push token:', token);
         }
       } catch (error) {
@@ -87,29 +85,15 @@ export async function registerForPushNotificationsAsync() {
 
 // Generate a unique device identifier as a fallback when push tokens aren't available
 async function generateDeviceIdentifier(): Promise<string> {
-  try {
-    // Try to get a stored identifier first
-    const storedId = await AsyncStorage.getItem(DEVICE_IDENTIFIER_KEY);
-    if (storedId) {
-      return storedId;
-    }
-    
-    // Generate a new identifier if none exists
-    const deviceName = Device.deviceName || 'unknown';
-    const deviceType = Device.deviceType || 'unknown';
-    const timestamp = Date.now().toString();
-    const randomPart = Math.random().toString(36).substring(2, 10);
-    
-    const deviceId = `${deviceName}_${deviceType}_${timestamp}_${randomPart}`.replace(/\s+/g, '_');
-    
-    // Store for future use
-    await AsyncStorage.setItem(DEVICE_IDENTIFIER_KEY, deviceId);
-    
-    return deviceId;
-  } catch (error) {
-    console.error('Error generating device identifier:', error);
-    return Date.now().toString() + Math.random().toString(36).substring(2, 10);
-  }
+  // Generate a new identifier
+  const deviceName = Device.deviceName || 'unknown';
+  const deviceType = Device.deviceType || 'unknown';
+  const timestamp = Date.now().toString();
+  const randomPart = Math.random().toString(36).substring(2, 10);
+  
+  const deviceId = `${deviceName}_${deviceType}_${timestamp}_${randomPart}`.replace(/\s+/g, '_');
+  
+  return deviceId;
 }
 
 // Check if notifications are enabled

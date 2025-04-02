@@ -1,21 +1,14 @@
 module.exports = {
   name: "Barakaat Makkiyyah",
   slug: "arabic-book-reader",
-  version: "1.0.8",
+  version: "1.0.9",
   orientation: "portrait",
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   newArchEnabled: false,
   plugins: [
     "expo-asset",
-    ["@config-plugins/react-native-pdf", {
-      ios: {
-        trustAllCerts: true
-      },
-      android: {
-        trustAllCerts: true
-      }
-    }],
+    "@config-plugins/react-native-pdf",
     [
       "expo-splash-screen",
       {
@@ -51,6 +44,13 @@ module.exports = {
           entitlements: {
             "com.apple.security.application-groups": ["group.com.honeysystems.barakaatmakiyyah"]
           }
+        },
+        android: {
+          compileSdkVersion: 34,
+          targetSdkVersion: 34,
+          buildToolsVersion: "34.0.0",
+          minSdkVersion: 24,
+          extraProguardRules: "-keep class com.swmansion.reanimated.** { *; }\n-keep class com.facebook.react.turbomodule.** { *; }"
         }
       }
     ]
@@ -75,7 +75,7 @@ module.exports = {
   ios: {
     supportsTablet: true,
     bundleIdentifier: "com.honeysystems.barakaatmakiyyah",
-    buildNumber: "12",
+    buildNumber: "15",
     infoPlist: {
       UIBackgroundModes: ["remote-notification"],
       ITSAppUsesNonExemptEncryption: false
@@ -87,9 +87,11 @@ module.exports = {
       backgroundColor: "#ffffff"
     },
     package: "com.honeysystems.barakaatmakiyyah",
-    versionCode: 13,
+    versionCode: 14,
     permissions: ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
-    jsEngine: "hermes"
+    jsEngine: "hermes",
+    softwareKeyboardLayoutMode: "resize",
+    googleServicesFile: "./google-services.json"
   },
   web: {
     favicon: "./assets/favicon.png"

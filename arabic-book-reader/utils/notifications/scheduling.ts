@@ -1,30 +1,6 @@
 import * as Notifications from 'expo-notifications';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ReminderSettings, REMINDER_SETTINGS_KEY, DEFAULT_REMINDER_SETTINGS } from './types';
+import { ReminderSettings, DEFAULT_REMINDER_SETTINGS } from './types';
 import { Platform } from 'react-native';
-
-// Save reminder settings
-export async function saveReminderSettings(settings: ReminderSettings) {
-  try {
-    await AsyncStorage.setItem(REMINDER_SETTINGS_KEY, JSON.stringify(settings));
-    await scheduleReminderNotifications(settings);
-    return true;
-  } catch (error) {
-    console.error('Error saving reminder settings:', error);
-    return false;
-  }
-}
-
-// Get reminder settings
-export async function getReminderSettings(): Promise<ReminderSettings> {
-  try {
-    const settings = await AsyncStorage.getItem(REMINDER_SETTINGS_KEY);
-    return settings ? JSON.parse(settings) : DEFAULT_REMINDER_SETTINGS;
-  } catch (error) {
-    console.error('Error getting reminder settings:', error);
-    return DEFAULT_REMINDER_SETTINGS;
-  }
-}
 
 // Schedule reminder notifications based on settings
 export async function scheduleReminderNotifications(settings: ReminderSettings) {

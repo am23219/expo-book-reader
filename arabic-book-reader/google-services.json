@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "654331214297",
+    "project_id": "bmakiyyah-6d8b6",
+    "storage_bucket": "bmakiyyah-6d8b6.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:654331214297:android:351c5acee929ec1a7541c8",
+        "android_client_info": {
+          "package_name": "com.honeysystems.barakaatmakiyyah"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAYujVrKYSMXjOyv6FuA4_kiQqLRbbWB6M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -42,6 +42,9 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
   const navigationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastPageRef = useRef<number>(currentPage);
   
+  // Flag to ignore the initial render scroll event
+  const isInitialRenderRef = useRef(true);
+  
   // Animation values for button press effects
   const prevButtonScale = React.useRef(new Animated.Value(1)).current;
   const nextButtonScale = React.useRef(new Animated.Value(1)).current;
@@ -277,6 +280,13 @@ const EnhancedPdfViewer: React.FC<EnhancedPdfViewerProps> = ({
         })}
         keyExtractor={(item, index) => index.toString()}
         onMomentumScrollEnd={(event) => {
+          // Ignore the initial render scroll event
+          if (isInitialRenderRef.current) {
+            console.log('Ignoring initial scroll event to preserve saved page position');
+            isInitialRenderRef.current = false;
+            return;
+          }
+          
           const index = Math.round(event.nativeEvent.contentOffset.x / width);
           // Convert the index back to our page number (accounting for the reversed array)
           const newPage = totalPages - index;

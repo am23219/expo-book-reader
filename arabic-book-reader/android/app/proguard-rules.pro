@@ -7,11 +7,24 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# React Native
+-keep,allowobfuscation @interface com.facebook.proguard.annotations.DoNotStrip
+-keep,allowobfuscation @interface com.facebook.proguard.annotations.KeepGettersAndSetters
+-keep,allowobfuscation @interface com.facebook.common.internal.DoNotStrip
+-keep @com.facebook.proguard.annotations.DoNotStrip class *
+-keep @com.facebook.common.internal.DoNotStrip class *
+-keepclassmembers class * {
+    @com.facebook.proguard.annotations.DoNotStrip *;
+    @com.facebook.common.internal.DoNotStrip *;
+}
+-keepclassmembers @com.facebook.proguard.annotations.KeepGettersAndSetters class * {
+  void set*(***);
+  *** get*();
+}
+
 # react-native-reanimated
 -keep class com.swmansion.reanimated.** { *; }
 -keep class com.facebook.react.turbomodule.** { *; }
-
-# Add any project specific keep options here:
 
 # Hermes
 -keep class com.facebook.hermes.unicode.** { *; }
@@ -21,18 +34,37 @@
 -keep class com.facebook.react.** { *; }
 -keep class com.facebook.react.bridge.** { *; }
 -keep class com.facebook.react.uimanager.** { *; }
+-keep class com.facebook.react.devsupport.** { *; }
+-keep class com.facebook.react.modules.** { *; }
 
 # PDF related (keep these classes since they're used for PDF rendering)
 -keep class com.github.barteksc.pdfviewer.** { *; }
 -keep class com.shockwave.** { *; }
+-keep class com.tom_roush.** { *; }
+-keep class com.artifex.mupdf.** { *; }
 
 # Expo 
 -keep class expo.modules.** { *; }
 
-# Aggressive optimizations
--optimizationpasses 5
--optimizations !code/simplification/arithmetic,!code/simplification/cast,!field/*,!class/merging/*
--allowaccessmodification
+# Keep ReactNative classes that might be accessed via reflection
+-keep class com.facebook.react.bridge.JSCJavaScriptExecutorFactory { *; }
+-keep class com.facebook.react.bridge.CatalystInstanceImpl { *; }
+
+# Fix issues with libraries that use reflection
+-keepattributes *Annotation*
+-keepattributes SourceFile,LineNumberTable
+-keepattributes Signature
+-keep class com.facebook.** { *; }
+-keep interface com.facebook.** { *; }
+
+# okhttp
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# JSR 305 annotations
+-dontwarn javax.annotation.**
 
 # Remove log statements
 -assumenosideeffects class android.util.Log {
@@ -51,8 +83,23 @@
 # Keep JavaScript interface methods
 -keepclassmembers class * {
     @com.facebook.react.bridge.ReactMethod *;
+    @com.facebook.react.bridge.ReactMethod public *;
 }
 
-# Remove development RN dev menu and other debug features
--keep class com.facebook.react.devsupport.** { *; }
--dontwarn com.facebook.react.devsupport.**
+# Keep native methods
+-keepclassmembers class * {
+    native <methods>;
+}
+
+# Fresco
+-keep class com.facebook.fresco.** {*;}
+-keep interface com.facebook.fresco.** {*;}
+-keep enum com.facebook.fresco.** {*;}
+
+# Avoid R8 stripping constructors from Kotlin data classes
+-keepclassmembers class **$WhenMappings {
+    <fields>;
+}
+-keepclassmembers class kotlin.Metadata {
+    public <methods>;
+}

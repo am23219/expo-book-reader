@@ -8,6 +8,7 @@ import { activateKeepAwakeAsync } from 'expo-keep-awake';
 import BookPage from './pages/BookPage';
 import { colors } from './constants/theme';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import storageService from './utils/storageService';
 // Commenting out notification imports for now
 // import { 
 //   setNotificationHandler, 
@@ -45,12 +46,12 @@ export default function App() {
     // No need for cleanup as we want to keep the screen awake throughout the app lifecycle
   }, []);
 
-  // Load resources function
+  // Load resources and app state
   const loadResources = useCallback(async () => {
     try {
-      console.log('Loading resources...');
+      console.log('Loading resources and app state...');
       
-      // Only load SpaceMono font which we know exists
+      // Load fonts
       try {
         await Font.loadAsync({
           'SpaceMono-Regular': require('./assets/fonts/SpaceMono-Regular.ttf'),
@@ -58,6 +59,21 @@ export default function App() {
         console.log('Font loaded successfully');
       } catch (fontError) {
         console.warn('Error loading fonts:', fontError);
+      }
+      
+      // Initialize storage by preloading key app data
+      try {
+        // Preload critical data to prepare for app startup
+        await Promise.all([
+          storageService.loadCurrentPage(),
+          storageService.getCurrentSectionId(),
+          storageService.loadSections(),
+          storageService.getReaderProgress()
+        ]);
+        console.log('Storage data loaded successfully');
+      } catch (storageError) {
+        console.warn('Error initializing storage:', storageError);
+        // Continue app startup even if storage fails
       }
       
       // Reduced delay to minimize waiting time

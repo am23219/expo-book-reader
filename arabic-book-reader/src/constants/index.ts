@@ -8,15 +8,6 @@ export * from './theme';
 export const APP_NAME = 'Arabic Book Reader';
 export const APP_VERSION = '1.0.0';
 
-// Storage keys
-export const STORAGE_KEYS = {
-  USER_PREFERENCES: 'user_preferences',
-  BOOKS: 'books',
-  LAST_READ_BOOK: 'last_read_book',
-  READING_STREAK: 'reading_streak',
-  REMINDER_SETTINGS: 'reminder_settings',
-};
-
 // Default settings
 export const DEFAULT_SETTINGS = {
   theme: 'light',

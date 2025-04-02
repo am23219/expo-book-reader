@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Section } from '../models/Section';
-import { saveSections } from '../utils/storage';
 import * as Haptics from 'expo-haptics';
 import { getOrdinalSuffix } from '../utils/dateUtils';
 
@@ -36,20 +34,6 @@ export const useKhatmCompletion = (
   });
   const [showNotification, setShowNotification] = useState(false);
 
-  // Load khatm count on component mount
-  useEffect(() => {
-    const loadKhatmCount = async () => {
-      try {
-        const savedKhatmCount = await AsyncStorage.getItem('khatm_count');
-        setKhatmCount(savedKhatmCount ? parseInt(savedKhatmCount) : 0);
-      } catch (error) {
-        console.error('Error loading khatm count:', error);
-      }
-    };
-    
-    loadKhatmCount();
-  }, []);
-
   // Check if all sections are completed
   const checkKhatmCompletion = async (sections: Section[]): Promise<Section[]> => {
     // Check if all sections are completed
@@ -61,9 +45,6 @@ export const useKhatmCompletion = (
       // Increment khatm count
       const newKhatmCount = khatmCount + 1;
       setKhatmCount(newKhatmCount);
-      
-      // Save to storage
-      AsyncStorage.setItem('khatm_count', newKhatmCount.toString());
       
       // Reset all sections for next khatm - explicitly clear completionDate
       const resetSections = sections.map(section => ({
@@ -95,9 +76,6 @@ export const useKhatmCompletion = (
       // Show notification
       setShowNotification(true);
       
-      // Save reset sections
-      saveSections(resetSections);
-      
       return resetSections;
     }
     
@@ -114,15 +92,9 @@ export const useKhatmCompletion = (
         completionDate: new Date()
       }));
       
-      // Save to storage
-      saveSections(completedSections);
-      
       // Increment khatm count
       const newKhatmCount = khatmCount + 1;
       setKhatmCount(newKhatmCount);
-      
-      // Save to storage
-      AsyncStorage.setItem('khatm_count', newKhatmCount.toString());
       
       // Stronger vibration pattern for khatm
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -153,11 +125,6 @@ export const useKhatmCompletion = (
         isCompleted: false,
         completionDate: undefined
       }));
-      
-      // Save reset sections
-      setTimeout(() => {
-        saveSections(resetSections);
-      }, 2000);
       
       return resetSections;
     } catch (error) {

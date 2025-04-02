@@ -1,4 +1,3 @@
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform, NativeModules } from 'react-native';
 import { ReadingDay } from '../hooks/useReadingStreak';
 
@@ -39,9 +38,6 @@ export const updateWidgetData = async (data: WidgetData): Promise<boolean> => {
 
     // Convert the data to a JSON string
     const jsonData = JSON.stringify(data);
-    
-    // Save to AsyncStorage for backup
-    await AsyncStorage.setItem('widget_data', jsonData);
     
     // Use the native module to save to shared UserDefaults if available
     try {
@@ -97,13 +93,6 @@ export const updateNextUpWidget = async (
       console.log('NextUp widget functionality not available');
       return false;
     }
-    
-    // Save to local storage for backup
-    await AsyncStorage.setItem('next_up_section_id', sectionId.toString());
-    await AsyncStorage.setItem('next_up_current_page', currentPage.toString());
-    await AsyncStorage.setItem('next_up_total_pages', totalPages.toString());
-    await AsyncStorage.setItem('next_up_completed', completed.toString());
-    await AsyncStorage.setItem('widget_book_title', bookTitle);
     
     // Use native module if available
     try {

@@ -62,5 +62,13 @@ target 'BarakaatMakkiyyah' do
         end
       end
     end
+    
+    # Fix for RCTDeprecation modulemap issues
+    system('mkdir -p Pods/Headers/Public/RCTDeprecation')
+    system('touch Pods/Headers/Public/RCTDeprecation/RCTDeprecation.h')
+    File.write('Pods/Headers/Public/RCTDeprecation/RCTDeprecation.modulemap', "module RCTDeprecation {\n  header \"RCTDeprecation.h\"\n  export *\n}")
+    
+    # Update CFBundleVersion for NextUpWidget to match main app
+    system('plutil -replace CFBundleVersion -string "9" NextUpWidget/Info.plist')
   end
 end

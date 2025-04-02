@@ -8,7 +8,8 @@ import {
   ScrollView, 
   Dimensions,
   Animated,
-  Easing
+  Easing,
+  ViewStyle
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius, spacing } from '../constants/theme';
@@ -17,6 +18,7 @@ import { startOfDay, addDays, isSameDay } from '../utils/dateUtils';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import { Section } from '../models/Section';
+import { loadSections } from '../utils/storageService';
 
 interface DayActivity {
   date: Date;
@@ -109,33 +111,24 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
   const loadReadingData = async () => {
     setIsLoading(true);
     try {
-      console.log("Loading reading data from AsyncStorage...");
-      // Load reading history
-      const savedHistory = await AsyncStorage.getItem('reading_history');
-      // Load completed sections with dates
-      const savedSections = await AsyncStorage.getItem('completed_sections');
+      console.log("Loading reading data...");
+      // Load all sections, which include completion status and dates
+      const allSections = await loadSections(); 
+      console.log(`Loaded ${allSections.length} sections from storage.`);
       
-      console.log("Loaded savedHistory:", savedHistory ? "Found data" : "No data");
-      console.log("Loaded savedSections:", savedSections ? "Found data" : "No data");
+      // Filter for completed sections to be used in calendar logic
+      const completed = allSections.filter((section: Section) => section.isCompleted && section.completionDate);
+      console.log(`Found ${completed.length} completed sections with dates.`);
+      setCompletedSections(completed); // Store the filtered completed sections
       
-      let history: Date[] = [];
-      let sections: Section[] = [];
+      // OPTIONAL: Load reading history if still needed for other calendar features
+      // const savedHistory = await AsyncStorage.getItem('reading_history');
+      // let history: Date[] = [];
+      // if (savedHistory) {
+      //   history = JSON.parse(savedHistory).map((dateStr: string) => new Date(dateStr));
+      // }
       
-      if (savedHistory) {
-        history = JSON.parse(savedHistory).map((dateStr: string) => new Date(dateStr));
-        console.log(`Parsed ${history.length} reading history dates`);
-      }
-      
-      if (savedSections) {
-        sections = JSON.parse(savedSections).map((section: Section) => ({
-          ...section,
-          completionDate: section.completionDate ? new Date(section.completionDate) : undefined
-        }));
-        console.log(`Parsed ${sections.length} completed sections`);
-        setCompletedSections(sections);
-      }
-      
-      // Process data to get manzils read per day
+      // Process data to get manzils read per day using the filtered completed sections
       const activityData: DayActivity[] = [];
       const daysInMonth = eachDayOfInterval({
         start: startOfMonth(selectedMonth),
@@ -146,15 +139,10 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
         const formattedDay = new Date(day);
         formattedDay.setHours(0, 0, 0, 0);
         
-        // Count manzils read on this day
-        const manzilsRead = sections.filter(section => {
-          if (!section.completionDate) return false;
-          const completionDate = new Date(section.completionDate);
-          return (
-            completionDate.getFullYear() === formattedDay.getFullYear() &&
-            completionDate.getMonth() === formattedDay.getMonth() &&
-            completionDate.getDate() === formattedDay.getDate()
-          );
+        // Count manzils read on this day using the completedSections state
+        const manzilsRead = completedSections.filter((section: Section) => {
+          const completionDate = new Date(section.completionDate!);
+          return isSameDay(completionDate, formattedDay);
         }).length;
         
         activityData.push({
@@ -163,11 +151,11 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
         });
       });
       
-      console.log(`Generated activity data for ${activityData.length} days`);
+      console.log(`Generated activity data for ${activityData.length} days in the month.`);
       console.log(`Days with activity: ${activityData.filter(day => day.manzilsRead > 0).length}`);
       
       setReadingActivity(activityData);
-    } catch (error) {
+    } catch (error: any) { // Added type
       console.error('Error loading reading data:', error);
     } finally {
       setIsLoading(false);
@@ -190,7 +178,7 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
   };
 
   const getDayColor = (date: Date) => {
-    const day = readingActivity.find(day => 
+    const day = readingActivity.find((day: DayActivity) => 
       day.date.getFullYear() === date.getFullYear() &&
       day.date.getMonth() === date.getMonth() &&
       day.date.getDate() === date.getDate()
@@ -223,34 +211,22 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
   };
 
   const getDayDetails = (date: Date) => {
-    const day = readingActivity.find(day => 
-      day.date.getFullYear() === date.getFullYear() &&
-      day.date.getMonth() === date.getMonth() &&
-      day.date.getDate() === date.getDate()
-    );
+    const dayActivity = readingActivity.find((day: DayActivity) => isSameDay(day.date, date));
     
-    if (!day || day.manzilsRead === 0) {
+    if (!dayActivity || dayActivity.manzilsRead === 0) {
       return null;
     }
     
-    // Get the manzils completed on this day
-    const manzilsCompleted = completedSections
-      .filter(section => {
-        if (!section.completionDate) return false;
-        const completionDate = new Date(section.completionDate);
-        return (
-          completionDate.getFullYear() === date.getFullYear() &&
-          completionDate.getMonth() === date.getMonth() &&
-          completionDate.getDate() === date.getDate()
-        );
-      })
-      .map(section => section.manzilNumber)
-      .filter(Boolean)
-      .sort((a, b) => (a || 0) - (b || 0)); // Handle undefined manzilNumbers
+    // Get the manzils completed on this specific day from the pre-filtered state
+    const manzilsCompletedOnDay = completedSections
+      .filter((section: Section) => section.completionDate && isSameDay(new Date(section.completionDate), date))
+      .map((section: Section) => section.manzilNumber)
+      .filter((num: number | undefined): num is number => num !== undefined) // Explicitly type num
+      .sort((a: number, b: number) => a - b); // Explicitly type a and b
     
     return {
-      count: day.manzilsRead,
-      manzils: manzilsCompleted
+      manzilsRead: dayActivity.manzilsRead,
+      manzilNumbers: manzilsCompletedOnDay
     };
   };
 
@@ -268,19 +244,24 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
 
   return (
     <Modal
+      transparent
       visible={visible}
-      animationType="fade"
-      transparent={false}
-      presentationStyle="fullScreen"
+      animationType="none"
       onRequestClose={onClose}
     >
-      <View style={styles.modalOverlay}>
-        <Animated.View 
+      <Animated.View 
+        style={[
+          styles.overlay,
+          { opacity: fadeAnim }
+        ]}
+      >
+        <TouchableOpacity style={StyleSheet.absoluteFill} onPress={onClose} />
+        <Animated.View
           style={[
             styles.modalContainer,
             { 
-              opacity: fadeAnim,
               transform: [{ translateY: slideAnim }],
+              opacity: fadeAnim 
             }
           ]}
         >
@@ -367,7 +348,7 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
                       {details && (
                         <View style={styles.dayBadge}>
                           <Text style={styles.dayBadgeText}>
-                            {details.count}
+                            {details.manzilsRead}
                           </Text>
                         </View>
                       )}
@@ -403,13 +384,13 @@ const ReadingCalendarModal: React.FC<ReadingCalendarModalProps> = ({ visible, on
             </View>
           </LinearGradient>
         </Animated.View>
-      </View>
+      </Animated.View>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  modalOverlay: {
+  overlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.85)',
     justifyContent: 'center',

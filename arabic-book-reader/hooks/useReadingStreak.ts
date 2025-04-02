@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { startOfDay, addDays, differenceInDays, isSameDay } from '../utils/dateUtils';
 import { updateWidgetWithReadingProgress, updateNextUpWidget } from '../utils/widgetSharing';
 import { Section } from '../models/Section';
-import { storageService, ReadingStreak } from '../utils/storageService';
 
 export interface ReadingDay {
   date: Date;
@@ -15,6 +14,12 @@ export interface ReadingStreakData {
   currentStreak: number;
   longestStreak: number;
   past7Days: ReadingDay[];
+}
+
+export interface ReadingStreak {
+  currentStreak: number;
+  lastReadDate: Date | null;
+  longestStreak: number;
 }
 
 /**
@@ -33,84 +38,36 @@ export const useReadingStreak = (): [
   // Load reading history on component mount
   useEffect(() => {
     loadReadingData();
-    loadCompletedSections();
   }, []);
 
-  // Load saved reading history
+  // Load saved reading history - now just returns defaults since storage is removed
   const loadReadingData = async () => {
-    try {
-      // Load saved reading streak data from storageService
-      const streakData = await storageService.getReadingStreak();
-      
-      // Get the history from AsyncStorage for backward compatibility
-      const savedHistory = await storageService.loadLastViewedPages();
-      const history: Date[] = [];
-      
-      // If we have history, convert it to an array of dates
-      if (savedHistory && Object.keys(savedHistory).length > 0) {
-        // This is a hack to extract dates from the last viewed pages object
-        // We'll improve this in a future update
-        Object.values(savedHistory).forEach(_ => {
-          // Add a pseudo-date for each entry (this is not ideal but preserves backward compatibility)
-          // In the future, we'll store proper reading history dates
-          if (streakData.lastReadDate) {
-            history.push(new Date(streakData.lastReadDate));
-          }
-        });
-      }
-      
-      setReadingHistory(history);
-      setCurrentStreak(streakData.currentStreak);
-      setLongestStreak(streakData.longestStreak);
-      
-      return {
-        history,
-        currentStreak: streakData.currentStreak,
-        longestStreak: streakData.longestStreak,
-        past7Days: getPast7Days(history, completedSections)
-      };
-    } catch (error) {
-      console.error('Error loading reading data:', error);
-      return {
-        history: [],
-        currentStreak: 0,
-        longestStreak: 0,
-        past7Days: getPast7Days([], completedSections)
-      };
-    }
-  };
-
-  // Load completed sections for tracking daily completion counts
-  const loadCompletedSections = async () => {
-    try {
-      // Load sections to get all completed ones
-      const allSections = await storageService.loadSections();
-      const completed = allSections.filter(section => section.isCompleted);
-      setCompletedSections(completed);
-    } catch (error) {
-      console.error('Error loading completed sections:', error);
-    }
+    const history: Date[] = [];
+    setReadingHistory(history);
+    setCurrentStreak(0);
+    setLongestStreak(0);
+    
+    return {
+      history,
+      currentStreak: 0,
+      longestStreak: 0,
+      past7Days: getPast7Days(history, completedSections)
+    };
   };
 
   // Update reading streak when a new day is recorded
   const updateReadingStreak = async (): Promise<ReadingStreakData> => {
     try {
-      // Load the latest completed sections data
-      await loadCompletedSections();
-      
       // Get today's date (start of day for consistent comparison)
       const today = startOfDay(new Date());
       
-      // First get current streak data
-      const currentStreakData = await storageService.getReadingStreak();
-      
       let history: Date[] = readingHistory;
-      let streak = currentStreakData.currentStreak;
-      let maxStreak = currentStreakData.longestStreak;
+      let streak = currentStreak;
+      let maxStreak = longestStreak;
       
-      // If we haven't read today, increment the streak
-      const lastReadDate = currentStreakData.lastReadDate ? 
-        startOfDay(new Date(currentStreakData.lastReadDate)) : null;
+      // Check if this is a new day from the most recent history entry
+      const lastReadDate = history.length > 0 ? 
+        startOfDay(history[history.length - 1]) : null;
       
       if (!lastReadDate || !isSameDay(lastReadDate, today)) {
         // We're reading on a new day
@@ -131,18 +88,8 @@ export const useReadingStreak = (): [
         // Update max streak if needed
         maxStreak = Math.max(streak, maxStreak);
         
-        // Save the updated streak data
-        const updatedStreakData: ReadingStreak = {
-          currentStreak: streak,
-          lastReadDate: today,
-          longestStreak: maxStreak
-        };
-        
         setCurrentStreak(streak);
         setLongestStreak(maxStreak);
-        
-        // Persist to storage
-        await storageService.saveReadingStreak(updatedStreakData);
       }
       
       // Get the past 7 days data
@@ -150,22 +97,15 @@ export const useReadingStreak = (): [
       
       // Update widget data
       try {
-        // Get the current book title
-        const bookTitle = await storageService.getCurrentBookTitle();
-        
-        // Get current section info if available
-        const currentSectionId = await storageService.getCurrentSectionId();
-        const currentPage = await storageService.loadCurrentPage();
-        
         // Find current section in the completed sections list
-        const currentSectionInfo = currentSectionId !== null ? 
-          completedSections.find(s => s.id === currentSectionId) : null;
+        const currentSectionInfo = completedSections.length > 0 ? 
+          completedSections[completedSections.length - 1] : null;
         
         let currentPageInfo;
         if (currentSectionInfo) {
           currentPageInfo = {
             sectionId: currentSectionInfo.id,
-            currentPage,
+            currentPage: 1,
             totalPages: currentSectionInfo.endPage - currentSectionInfo.startPage + 1,
             completed: currentSectionInfo.isCompleted
           };
@@ -173,7 +113,7 @@ export const useReadingStreak = (): [
         
         // Update widget data
         await updateWidgetWithReadingProgress(
-          bookTitle,
+          "Arabic Book Reader",
           past7Days,
           streak,
           maxStreak,
@@ -235,16 +175,13 @@ export const useReadingStreak = (): [
     bookTitle?: string
   ): Promise<void> => {
     try {
-      // Get book title if not provided
-      const title = bookTitle || await storageService.getCurrentBookTitle();
-      
-      // Update the widget - fix the call to match the expected parameters
+      // Update the widget
       await updateNextUpWidget(
         sectionId,
         currentPage, 
         totalPages,
         completed,
-        title
+        bookTitle || "Arabic Book Reader"
       );
     } catch (error) {
       console.error('Error updating NextUp widget:', error);
