@@ -43,6 +43,7 @@ app-example
 
 # Service account
 *-service-account.json
+google-services.json
 
 # Ignore paths outside the repository
 ../fresh_repo/
