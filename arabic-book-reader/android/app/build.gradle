@@ -19,6 +19,45 @@ react {
     cliFile = new File(["node", "--print", "require.resolve('@expo/cli', { paths: [require.resolve('expo/package.json')] })"].execute(null, rootDir).text.trim())
     bundleCommand = "export:embed"
 
+    /* Folders */
+     //   The root of your project, i.e. where "package.json" lives. Default is '../..'
+    // root = file("../../")
+    //   The folder where the react-native NPM package is. Default is ../../node_modules/react-native
+    // reactNativeDir = file("../../node_modules/react-native")
+    //   The folder where the react-native Codegen package is. Default is ../../node_modules/@react-native/codegen
+    // codegenDir = file("../../node_modules/@react-native/codegen")
+
+    /* Variants */
+    //   The list of variants to that are debuggable. For those we're going to
+    //   skip the bundling of the JS bundle and the assets. By default is just 'debug'.
+    //   If you add flavors like lite, prod, etc. you'll have to list your debuggableVariants.
+    // debuggableVariants = ["liteDebug", "prodDebug"]
+
+    /* Bundling */
+    //   A list containing the node command and its flags. Default is just 'node'.
+    // nodeExecutableAndArgs = ["node"]
+
+    //
+    //   The path to the CLI configuration file. Default is empty.
+    // bundleConfig = file(../rn-cli.config.js)
+    //
+    //   The name of the generated asset file containing your JS bundle
+    // bundleAssetName = "MyApplication.android.bundle"
+    //
+    //   The entry file for bundle generation. Default is 'index.android.js' or 'index.js'
+    // entryFile = file("../js/MyApplication.android.js")
+    //
+    //   A list of extra flags to pass to the 'bundle' commands.
+    //   See https://github.com/react-native-community/cli/blob/main/docs/commands.md#bundle
+    // extraPackagerArgs = []
+
+    /* Hermes Commands */
+    //   The hermes compiler command to run. By default it is 'hermesc'
+    // hermesCommand = "$rootDir/my-custom-hermesc/bin/hermesc"
+    //
+    //   The list of flags to pass to the Hermes compiler. By default is "-O", "-output-source-map"
+    // hermesFlags = ["-O", "-output-source-map"]
+
     /* Autolinking */
     autolinkLibrariesWithApp()
 }
@@ -26,10 +65,18 @@ react {
 /**
  * Set this to true to Run Proguard on Release builds to minify the Java bytecode.
  */
-def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: true).toBoolean()
+def enableProguardInReleaseBuilds = (findProperty('android.enableProguardInReleaseBuilds') ?: false).toBoolean()
 
 /**
  * The preferred build flavor of JavaScriptCore (JSC)
+ *
+ * For example, to use the international variant, you can use:
+ * `def jscFlavor = 'org.webkit:android-jsc-intl:+'`
+ *
+ * The international variant includes ICU i18n library and necessary data
+ * allowing to use e.g. `Date.toLocaleString` and `String.localeCompare` that
+ * give correct results when using with locales other than en-US. Note that
+ * this variant is about 6MiB larger per architecture than default.
  */
 def jscFlavor = 'org.webkit:android-jsc:+'
 
@@ -43,18 +90,6 @@ android {
         pickFirst 'lib/arm64-v8a/libc++_shared.so'
         pickFirst 'lib/x86_64/libc++_shared.so'
         pickFirst 'lib/armeabi-v7a/libc++_shared.so'
-        pickFirst "**/*.so"
-        pickFirst "**/libc++_shared.so"
-        pickFirst "**/libhermes.so"
-        exclude "META-INF/DEPENDENCIES"
-        exclude "META-INF/LICENSE"
-        exclude "META-INF/LICENSE.txt"
-        exclude "META-INF/license.txt"
-        exclude "META-INF/NOTICE"
-        exclude "META-INF/NOTICE.txt"
-        exclude "META-INF/notice.txt"
-        exclude "META-INF/ASL2.0"
-        exclude("META-INF/*.kotlin_module")
     }
 
 // @generated end react-native-pdf-packaging-options
@@ -63,8 +98,6 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    defaultConfig.ndk.abiFilters = ["armeabi-v7a", "arm64-v8a", "x86", "x86_64"]
-
     namespace 'com.honeysystems.barakaatmakiyyah'
     defaultConfig {
         applicationId 'com.honeysystems.barakaatmakiyyah'
@@ -72,20 +105,7 @@ android {
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 14
         versionName "1.0.9"
-        
-        // Required for 64-bit support
-        ndk {
-            abiFilters "armeabi-v7a", "arm64-v8a", "x86", "x86_64"
-        }
-        
-        // Increased Java heap size for faster builds
-        javaCompileOptions {
-            annotationProcessorOptions {
-                arguments = ["room.schemaLocation": "$projectDir/schemas".toString()]
-            }
-        }
     }
-    
     signingConfigs {
         debug {
             storeFile file('debug.keystore')
@@ -93,96 +113,28 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
-        release {
-            storeFile file('../../barakaat-release-key.keystore')
-            storePassword 'Morani_0519'
-            keyAlias 'barakaat-key-alias'
-            keyPassword 'Morani_0519'
-        }
     }
-    
-    // Bundle configuration for size optimization
-    bundle {
-        language {
-            enableSplit = true
-        }
-        density {
-            enableSplit = true
-        }
-        abi {
-            enableSplit = true
-        }
-    }
-    
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            // Enable debugging
-            debuggable true
         }
         release {
-            signingConfig signingConfigs.release
-            
-            // Enable shrinking and optimization
-            shrinkResources true
+            // Caution! In production, you need to generate your own keystore file.
+            // see https://reactnative.dev/docs/signed-apk-android.
+            signingConfig signingConfigs.debug
+            shrinkResources (findProperty('android.enableShrinkResourcesInReleaseBuilds')?.toBoolean() ?: false)
             minifyEnabled enableProguardInReleaseBuilds
-            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
-            crunchPngs true
-            
-            // Disable debugging
-            debuggable false
-            
-            // Enable firebase crashlytics for release builds
-            firebaseCrashlytics {
-                nativeSymbolUploadEnabled true
-                unstrippedNativeLibsDir 'build/intermediates/merged_native_libs/release/out/lib'
-            }
+            proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            crunchPngs (findProperty('android.enablePngCrunchInReleaseBuilds')?.toBoolean() ?: true)
         }
     }
-    
-    // Fix for packaging issues
     packagingOptions {
         jniLibs {
-            useLegacyPackaging = false
-        }
-        resources {
-            // Exclude unnecessary files
-            excludes += ['META-INF/DEPENDENCIES', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/license.txt', 'META-INF/NOTICE', 'META-INF/NOTICE.txt', 'META-INF/notice.txt', 'META-INF/ASL2.0', 'META-INF/*.kotlin_module']
-            pickFirsts += ['**/libc++_shared.so', '**/libhermes.so']
+            useLegacyPackaging (findProperty('expo.useLegacyPackaging')?.toBoolean() ?: false)
         }
     }
-    
-    // Android resource optimization
     androidResources {
         ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'
-    }
-    
-    // Avoid multiple APK variants generating same version code collision
-    flavorDimensions = ["default"]
-    productFlavors {
-        prod {
-            dimension "default"
-            // Ensure unique versionCode for app bundle
-            versionCode 14
-            versionName "1.0.9"
-        }
-    }
-    
-    // Fix for resolution issues
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_17
-        targetCompatibility JavaVersion.VERSION_17
-    }
-    
-    // Match Kotlin to Java compatibility
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-    
-    // Enable stable package IDs for app bundle
-    dependenciesInfo {
-        includeInApk = false
-        includeInBundle = false
     }
 }
 
@@ -229,18 +181,10 @@ dependencies {
     }
 
     if (hermesEnabled.toBoolean()) {
-        implementation("com.facebook.react:hermes-android") {
-            exclude group: 'com.facebook.fbjni'
-        }
-        // Fix for fbjni issues
-        implementation("com.facebook.fbjni:fbjni:0.5.1")
+        implementation("com.facebook.react:hermes-android")
+    } else {
+        implementation jscFlavor
     }
-    
-    // Fixed version dependencies to avoid conflicts
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation("androidx.core:core-ktx:1.10.1")
-    
-    // PDF libraries support
-    implementation("com.github.barteksc:android-pdf-viewer:2.8.2")
-    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
 }
+
+apply plugin: 'com.google.gms.google-services'

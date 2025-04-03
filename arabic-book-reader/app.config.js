@@ -6,6 +6,9 @@ module.exports = {
   icon: "./assets/icon.png",
   userInterfaceStyle: "light",
   newArchEnabled: false,
+  updates: {
+    url: "https://u.expo.dev/dd28f021-7e74-410e-b5d0-615e73b491ee"
+  },
   plugins: [
     "expo-asset",
     "@config-plugins/react-native-pdf",
@@ -91,7 +94,8 @@ module.exports = {
     permissions: ["NOTIFICATIONS", "RECEIVE_BOOT_COMPLETED", "VIBRATE"],
     jsEngine: "hermes",
     softwareKeyboardLayoutMode: "resize",
-    googleServicesFile: "./google-services.json"
+    googleServicesFile: "./google-services.json",
+    runtimeVersion: "1.0.0"
   },
   web: {
     favicon: "./assets/favicon.png"

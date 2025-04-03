@@ -1,9 +1,25 @@
 module.exports = {
-  name: "PDF Test",
-  slug: "pdf-test",
-  version: "1.0.0",
-  plugins: ["@config-plugins/react-native-pdf"],
+  name: "Barakaat Makiyyah",
+  slug: "barakaat-makiyyah",
+  version: "1.0.9",
+  orientation: "portrait",
+  icon: "./assets/icon.png",
+  userInterfaceStyle: "light",
+  platforms: ["android", "ios"],
+  android: {
+    package: "com.honeysystems.barakaatmakiyyah",
+    adaptiveIcon: {
+      foregroundImage: "./assets/adaptive-icon.png",
+      backgroundColor: "#ffffff"
+    },
+    jsEngine: "hermes"
+  },
+  assetBundlePatterns: ["**/*"],
   ios: {
-    bundleIdentifier: "com.am0519.pdftest"
+    supportsTablet: true,
+    bundleIdentifier: "com.honeysystems.barakaatmakiyyah"
+  },
+  web: {
+    favicon: "./assets/favicon.png"
   }
 }; 
